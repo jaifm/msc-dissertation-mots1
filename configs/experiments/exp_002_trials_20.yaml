@@ -1,0 +1,14 @@
+defaults: base
+id: exp_002_trials_20
+description: "Higher trial budget: 20 Optuna trials."
+hypothesis: "More trials lead to better hyperparameter tuning and modest R² improvement."
+
+features:
+  use_engineered: true
+  log_numeric: false
+
+xgb:
+  n_trials: 20
+
+run:
+  sections: [baseline, sweep]

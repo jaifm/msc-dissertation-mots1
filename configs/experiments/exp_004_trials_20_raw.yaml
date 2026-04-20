@@ -1,0 +1,14 @@
+defaults: base
+id: exp_004_trials_20_raw
+description: "Higher trials + raw features."
+hypothesis: "Even with more tuning, raw features cannot match engineered features."
+
+features:
+  use_engineered: false
+  log_numeric: false
+
+xgb:
+  n_trials: 20
+
+run:
+  sections: [baseline, sweep]

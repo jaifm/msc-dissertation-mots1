@@ -1,0 +1,92 @@
+{
+  "runs": [
+    {
+      "experiment_id": "exp_004_trials_20_raw",
+      "description": "Higher trials + raw features.",
+      "hypothesis": "Even with more tuning, raw features cannot match engineered features.",
+      "created_at_utc": "2026-04-20T12:14:23.672889+00:00",
+      "sections_run": [
+        "baseline",
+        "sweep"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.47876297380345023,
+        "test_rmse": 19.038996600903232
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv",
+        "sweep_model_summary.csv",
+        "sweep_per_target.csv"
+      ]
+    },
+    {
+      "experiment_id": "exp_003_raw_only",
+      "description": "Raw features only (no engineered features).",
+      "hypothesis": "Engineered features provide measurable gain; raw features underperform.",
+      "created_at_utc": "2026-04-20T11:58:15.820653+00:00",
+      "sections_run": [
+        "baseline",
+        "sweep"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.49131702278558353,
+        "test_rmse": 19.266176549716306
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv",
+        "sweep_model_summary.csv",
+        "sweep_per_target.csv"
+      ]
+    },
+    {
+      "experiment_id": "exp_002_trials_20",
+      "description": "Higher trial budget: 20 Optuna trials.",
+      "hypothesis": "More trials lead to better hyperparameter tuning and modest R\u00b2 improvement.",
+      "created_at_utc": "2026-04-20T11:48:42.831230+00:00",
+      "sections_run": [
+        "baseline",
+        "sweep"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.4333878738465795,
+        "test_rmse": 19.793235611167336
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv",
+        "sweep_model_summary.csv",
+        "sweep_per_target.csv"
+      ]
+    },
+    {
+      "experiment_id": "exp_001_baseline",
+      "description": "Baseline: engineered features, 10 trials.",
+      "hypothesis": "Engineered features + standard tuning establish baseline performance.",
+      "created_at_utc": "2026-04-20T11:27:35.152265+00:00",
+      "sections_run": [
+        "baseline",
+        "sweep"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.46171703561255334,
+        "test_rmse": 18.49951088788562
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv",
+        "sweep_model_summary.csv",
+        "sweep_per_target.csv"
+      ]
+    }
+  ]
+}

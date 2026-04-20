@@ -1,0 +1,14 @@
+defaults: base
+id: exp_001_baseline
+description: "Baseline: engineered features, 10 trials."
+hypothesis: "Engineered features + standard tuning establish baseline performance."
+
+features:
+  use_engineered: true
+  log_numeric: false
+
+xgb:
+  n_trials: 10
+
+run:
+  sections: [baseline, sweep]

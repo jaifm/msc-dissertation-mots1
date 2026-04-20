@@ -1,0 +1,89 @@
+# ============================================================================
+# BASE CONFIGURATION
+# ----------------------------------------------------------------------------
+# All experiment YAMLs inherit from this file. Keys redefined in an experiment
+# deep-merge over these defaults (lists/scalars replace, dicts merge).
+# ============================================================================
+
+id: base
+description: "Base configuration (defaults only; not runnable on its own)."
+hypothesis: ""
+seed: 42
+
+# Paths are relative to the project root (the folder containing this config).
+# The defaults here point at the train/test split produced by the original
+# project, so v2 can reuse it without copying data.
+paths:
+  splits: ../msc-dissertation-project-MOTS1/data/processed/splits
+  train_csv: expanded_train.csv
+  test_csv: expanded_test.csv
+  experiments_root: data/processed/xgboost_experiments
+
+data:
+  group_column: Composite_Mix_ID
+  viscosity_columns:
+    - Viscosity_at_shear_rate_1_1/s
+    - Viscosity_at_shear_rate_10_1/s
+    - Viscosity_at_shear_rate_100_1/s
+  composition_cols:
+    - Dispersent_Type
+    - Solid_Content_pct
+    - Solid_Additive_pct
+    - NMC_pct
+    - C65_pct
+    - KS6L_pct
+    - PVDF_pct
+
+features:
+  use_engineered: true
+  log_numeric: false
+
+physics:
+  viscosity_shears: [1.0, 10.0, 100.0]
+  models:
+    - cy5
+    - power_law
+    - sisko
+    - williamson
+    - constrained_cy
+  display_names:
+    cy5: "5-parameter CY"
+    power_law: "Power Law"
+    sisko: "Sisko"
+    williamson: "Williamson"
+    constrained_cy: "Constrained CY"
+  targets:
+    cy5: [eta_0, eta_inf, lambda_time, n, a]
+    power_law: [k_consistency, n_flow]
+    sisko: [eta_inf_sisko, k_sisko, n_sisko]
+    williamson: [eta_0, eta_inf, lambda_time, n_w]
+    constrained_cy: [eta_0, lambda_time, n]
+
+xgb:
+  n_trials: 10
+  n_estimators: 100
+  target_transform: none      # options: none, log1p_nonnegative
+  # Fixed params used by LOO (baseline sweep uses Optuna search; this is only
+  # relevant when a section runs with a fixed XGB config).
+  fixed_params:
+    max_depth: 5
+    learning_rate: 0.05
+    subsample: 0.9
+    colsample_bytree: 0.9
+    reg_lambda: 1.0
+    reg_alpha: 0.01
+    n_estimators: 120
+    verbosity: 0
+
+loo:
+  variants:
+    - {id: exp_loo_row, leave_out_unit: row}
+    - {id: exp_loo_mix, leave_out_unit: mix}
+  target_scope: first          # 'first' = first target per model; 'all' = every target
+
+# Sections to run for this experiment. Options:
+#   baseline  — full 5-model × all-targets sweep with Optuna tuning
+#   sweep     — baseline + log1p_numeric variant comparison
+#   loo       — leave-one-out generalisability (slow)
+run:
+  sections: [baseline]
