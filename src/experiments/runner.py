@@ -42,6 +42,7 @@ without cluttering the results directory).
 """
 from __future__ import annotations
 
+import time
 from typing import Dict
 
 import pandas as pd
@@ -94,18 +95,22 @@ def run_experiment(cfg: Config, *, persist: bool = True) -> ExperimentResults:
 
     results = ExperimentResults(experiment_id=cfg.id)
 
-    # Step 3: dispatch to each requested section.
+    # Step 3: dispatch to each requested section, timing the full run.
+    _start = time.perf_counter()
     if "baseline" in cfg.run.sections:
         results.add(sweep_module.run_baseline(physics_datasets, cfg))
     if "sweep" in cfg.run.sections:
         results.add(sweep_module.run_sweep(physics_datasets, cfg))
     if "loo" in cfg.run.sections:
         results.add(loo_module.run_loo(physics_datasets, cfg))
+    results.duration_seconds = round(time.perf_counter() - _start, 1)
 
     # Step 4: optionally persist all outputs.
     if persist:
         out_dir = save(cfg, results)
-        print(f"\nResults written to: {out_dir}")
+        print(f"\nRun ID   : {results.run_id}")
+        print(f"Results  : {out_dir}")
+        print(f"Duration : {_fmt_duration(results.duration_seconds)}")
 
     # Step 5: print a compact best-model summary for quick inspection.
     best = results.best()
@@ -115,3 +120,14 @@ def run_experiment(cfg: Config, *, persist: bool = True) -> ExperimentResults:
             f"— R²={best['test_r2']:.3f}, RMSE={best['test_rmse']:.3f}"
         )
     return results
+
+
+def _fmt_duration(seconds: float) -> str:
+    """Format a duration in seconds as a human-readable string."""
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    minutes, secs = divmod(int(seconds), 60)
+    if minutes < 60:
+        return f"{minutes}m {secs:02d}s"
+    hours, mins = divmod(minutes, 60)
+    return f"{hours}h {mins:02d}m {secs:02d}s"

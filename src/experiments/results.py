@@ -23,11 +23,23 @@ SectionResult
 
 ExperimentResults
     A dict-like container holding one SectionResult per section name, plus
-    the experiment ID and a UTC timestamp of when the run was created.
+    the config experiment ID, a unique run ID, and a UTC timestamp.
+
+UNIQUE RUN IDS
+--------------
+Every call to ``run_experiment`` produces a distinct ``run_id`` of the form
+``{experiment_id}_{YYYYMMDD_HHMMSS}`` (e.g. ``exp_001_baseline_20260420_143022``).
+Results are written to ``experiments_root / run_id``, so re-running the same
+experiment config never overwrites previous results — each run gets its own
+subdirectory.
+
+The manifest accumulates one entry per run (all runs are preserved) and is
+sorted most-recent-first.  The notebook's comparison cell therefore shows the
+full history of every config that has been run.
 
 PERSISTENCE LAYOUT
 ------------------
-Results are saved to ``cfg.results_dir`` (= experiments_root / experiment_id):
+Results are saved to ``experiments_root / run_id``:
 
   <section>_model_summary.csv    -- model_summary DataFrame
   <section>_per_target.csv       -- per_target DataFrame
@@ -37,15 +49,7 @@ Results are saved to ``cfg.results_dir`` (= experiments_root / experiment_id):
 
 The config snapshot is saved alongside the results so that any future
 re-analysis knows exactly which hyperparameters, feature settings, and data
-paths were active during the run.
-
-EXPERIMENT MANIFEST
--------------------
-``_update_manifest`` appends a metadata record to a shared
-``experiment_manifest.json`` at the root of the experiments directory.  The
-most recent run for each experiment ID is kept at position 0; older runs for
-the same ID are replaced.  This allows the comparison notebook cell to load
-all experiments without scanning individual subdirectories.
+paths were active during that specific run.
 """
 from __future__ import annotations
 
@@ -58,6 +62,18 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 from ..config import Config
+
+
+def _make_run_id(experiment_id: str) -> str:
+    """Generate a unique run ID by appending a compact UTC timestamp.
+
+    Format: ``{experiment_id}_{YYYYMMDD_HHMMSS}``
+
+    The timestamp is in UTC so run IDs sort correctly regardless of the
+    local timezone of the machine running the experiment.
+    """
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    return f"{experiment_id}_{ts}"
 
 
 @dataclass
@@ -105,17 +121,35 @@ class ExperimentResults:
     Attributes
     ----------
     experiment_id:
-        The config ID string (e.g. ``'exp_001_baseline'``).
+        The config ID string (e.g. ``'exp_001_baseline'``).  Shared across
+        all runs of the same config.
+    run_id:
+        Unique identifier for this specific run, formed as
+        ``{experiment_id}_{YYYYMMDD_HHMMSS}``.  Used as the output directory
+        name so multiple runs of the same config never collide on disk.
     sections:
         Dict mapping section name → SectionResult.
     created_at_utc:
         ISO-8601 UTC timestamp set at object creation time.
+    results_dir:
+        Set by ``save()`` to the directory where this run's files were written.
+        None until ``save()`` is called (i.e. when ``persist=False``).
     """
     experiment_id: str
+    run_id: str = field(default="")
     sections: Dict[str, SectionResult] = field(default_factory=dict)
     created_at_utc: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
+    results_dir: Optional[Path] = field(default=None)
+    duration_seconds: Optional[float] = field(default=None)
+
+    def __post_init__(self) -> None:
+        # Generate run_id at construction time if not supplied explicitly.
+        # This ensures the timestamp reflects when the run started, not when
+        # save() was called.
+        if not self.run_id:
+            self.run_id = _make_run_id(self.experiment_id)
 
     def add(self, section: SectionResult) -> None:
         """Register a SectionResult under its ``name`` key."""
@@ -156,24 +190,30 @@ class ExperimentResults:
 def save(cfg: Config, results: ExperimentResults) -> Path:
     """Write all section DataFrames, metadata, and config snapshot to disk.
 
-    Creates ``cfg.results_dir`` if it does not exist.  Existing files for
-    the same experiment ID are overwritten, which allows re-running an
-    experiment to update its results in place.
+    Each run is written to its own subdirectory named after ``results.run_id``
+    (``experiments_root / run_id``), so re-running the same experiment config
+    never overwrites previous results.
+
+    Also sets ``results.results_dir`` to the output path so the caller can
+    pass it directly to ``make_all_plots`` without re-deriving it.
 
     Parameters
     ----------
     cfg:
-        Experiment configuration (provides the output directory path).
+        Experiment configuration (provides the experiments root path).
     results:
         The completed experiment results to persist.
 
     Returns
     -------
     Path
-        The experiment results directory (``cfg.results_dir``).
+        The run-specific results directory (``experiments_root / run_id``).
     """
-    out_dir = cfg.results_dir
+    # Use run_id as the directory name, not experiment_id, so each run is
+    # isolated even when the same config is executed multiple times.
+    out_dir = cfg.experiments_root_path / results.run_id
     out_dir.mkdir(parents=True, exist_ok=True)
+    results.results_dir = out_dir
 
     saved_files: List[str] = []
     for section in results.sections.values():
@@ -200,10 +240,12 @@ def save(cfg: Config, results: ExperimentResults) -> Path:
     # 'best' falls through the three section names in priority order.
     best = results.best("baseline") or results.best("sweep") or results.best("loo")
     metadata = {
+        "run_id": results.run_id,
         "experiment_id": results.experiment_id,
         "description": cfg.description,
         "hypothesis": cfg.hypothesis,
         "created_at_utc": results.created_at_utc,
+        "duration_seconds": results.duration_seconds,
         "sections_run": list(results.sections.keys()),
         "best": best,
         "saved_files": saved_files,
@@ -215,16 +257,13 @@ def save(cfg: Config, results: ExperimentResults) -> Path:
 
 
 def _update_manifest(cfg: Config, metadata: dict) -> None:
-    """Append or update this run's record in the shared experiment manifest.
+    """Append this run's record to the shared experiment manifest.
 
-    The manifest is a single JSON file at the experiments root that accumulates
-    one record per unique experiment ID.  It is read by the notebook's
-    comparison cell (``experiment_manifest.json``) so that all runs are visible
-    without having to scan subdirectories.
-
-    If a previous run for the same experiment_id exists in the manifest it is
-    removed first, so the manifest always shows the most recent result for each
-    ID and does not accumulate duplicate entries.
+    Every run is preserved — the manifest accumulates the full history of all
+    runs across all experiment configs, sorted most-recent-first.  Deduplication
+    is on ``run_id`` (which is unique per run), not ``experiment_id``, so
+    re-running the same config produces a new entry rather than replacing the
+    old one.
     """
     manifest_path = cfg.experiments_root_path / "experiment_manifest.json"
     manifest = {"runs": []}
@@ -236,10 +275,11 @@ def _update_manifest(cfg: Config, metadata: dict) -> None:
             # rather than propagating the error or silently dropping the new run.
             pass
     manifest.setdefault("runs", [])
-    # Remove any existing record for this experiment so the new one takes its
-    # place at position 0 (most recent first).
+    # Deduplicate on run_id only: if the exact same run_id is already in the
+    # manifest (e.g. save() called twice in one session), replace it.
+    # Different runs of the same experiment_id are always kept.
     manifest["runs"] = [
-        r for r in manifest["runs"] if r.get("experiment_id") != metadata["experiment_id"]
+        r for r in manifest["runs"] if r.get("run_id") != metadata["run_id"]
     ]
     manifest["runs"].insert(0, metadata)
     manifest_path.parent.mkdir(parents=True, exist_ok=True)

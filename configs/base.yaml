@@ -11,10 +11,10 @@ hypothesis: ""
 seed: 42
 
 # Paths are relative to the project root (the folder containing this config).
-# The defaults here point at the train/test split produced by the original
-# project, so v2 can reuse it without copying data.
+# All data lives inside this project under data/ — no external dependencies.
 paths:
-  splits: ../msc-dissertation-project-MOTS1/data/processed/splits
+  raw: data/raw
+  splits: data/processed/splits
   train_csv: expanded_train.csv
   test_csv: expanded_test.csv
   experiments_root: data/processed/xgboost_experiments

@@ -285,9 +285,25 @@ def main(raw_dir: Path, out_dir: Path) -> None:
 
 if __name__ == "__main__":
     import argparse
+    from ..paths import PROJECT_ROOT
 
-    p = argparse.ArgumentParser(description="Prepare raw batch CSVs into train/test splits.")
-    p.add_argument("--raw", type=Path, required=True, help="Directory containing batch1_raw.csv and batch2_raw.csv.")
-    p.add_argument("--out", type=Path, required=True, help="Output directory for processed files.")
+    # Defaults point at data/ inside this project so the script works without
+    # any arguments as long as raw CSVs are present at data/raw/.
+    p = argparse.ArgumentParser(
+        description="Prepare raw batch CSVs into train/test splits.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    p.add_argument(
+        "--raw",
+        type=Path,
+        default=PROJECT_ROOT / "data" / "raw",
+        help="Directory containing batch1_raw.csv and batch2_raw.csv.",
+    )
+    p.add_argument(
+        "--out",
+        type=Path,
+        default=PROJECT_ROOT / "data" / "processed",
+        help="Output directory for processed files and splits subdirectory.",
+    )
     args = p.parse_args()
     main(args.raw, args.out)

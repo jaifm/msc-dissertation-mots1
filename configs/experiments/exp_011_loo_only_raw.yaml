@@ -1,6 +1,6 @@
 defaults: base
-id: exp_010_loo_only
-description: "Leave-one-out generalisability evaluation (row + mix variants)."
+id: exp_011_loo_only_raw
+description: "Leave-one-out generalisability evaluation (row + mix variants) (raw features)."
 hypothesis: "LOO reveals strict generalisability; scores drop vs train/test split."
 
 features:

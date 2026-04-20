@@ -1,6 +1,63 @@
 {
   "runs": [
     {
+      "run_id": "exp_001_baseline_20260420_125629",
+      "experiment_id": "exp_001_baseline",
+      "description": "Baseline: engineered features, 10 trials.",
+      "hypothesis": "Engineered features + standard tuning establish baseline performance.",
+      "created_at_utc": "2026-04-20T12:56:29.227841+00:00",
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "test",
+        "test_r2": 0.9,
+        "test_rmse": 0.3
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv"
+      ]
+    },
+    {
+      "experiment_id": "exp_010_loo_only",
+      "description": "Leave-one-out generalisability evaluation (row + mix variants).",
+      "hypothesis": "LOO reveals strict generalisability; scores drop vs train/test split.",
+      "created_at_utc": "2026-04-20T12:48:40.163331+00:00",
+      "sections_run": [
+        "loo"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.6471509009235314,
+        "test_rmse": 36.2046911377309
+      },
+      "saved_files": [
+        "loo_model_summary.csv",
+        "loo_per_target.csv",
+        "loo_predictions.csv"
+      ]
+    },
+    {
+      "experiment_id": "exp_011_loo_only_raw",
+      "description": "Leave-one-out generalisability evaluation (row + mix variants) (raw features).",
+      "hypothesis": "LOO reveals strict generalisability; scores drop vs train/test split.",
+      "created_at_utc": "2026-04-20T12:44:14.185012+00:00",
+      "sections_run": [
+        "loo"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.6649006136085069,
+        "test_rmse": 35.28232179900879
+      },
+      "saved_files": [
+        "loo_model_summary.csv",
+        "loo_per_target.csv",
+        "loo_predictions.csv"
+      ]
+    },
+    {
       "experiment_id": "exp_004_trials_20_raw",
       "description": "Higher trials + raw features.",
       "hypothesis": "Even with more tuning, raw features cannot match engineered features.",

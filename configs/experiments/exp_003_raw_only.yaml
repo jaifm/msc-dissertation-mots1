@@ -11,4 +11,4 @@ xgb:
   n_trials: 10
 
 run:
-  sections: [baseline, sweep]
+  sections: [baseline]

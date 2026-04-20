@@ -61,7 +61,8 @@ from .paths import CONFIGS_DIR, PROJECT_ROOT
 
 @dataclass
 class PathsCfg:
-    splits: str
+    raw: str               # directory containing the raw batch CSVs
+    splits: str            # directory containing the pre-computed split CSVs
     train_csv: str
     test_csv: str
     experiments_root: str
@@ -143,6 +144,10 @@ class Config:
         """Resolve a path key relative to the project root."""
         p = Path(relative)
         return p if p.is_absolute() else (PROJECT_ROOT / p).resolve()
+
+    @property
+    def raw_dir(self) -> Path:
+        return self.resolve(self.paths.raw)
 
     @property
     def splits_dir(self) -> Path:
