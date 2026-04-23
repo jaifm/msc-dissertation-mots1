@@ -63,6 +63,12 @@ xgb:
   n_trials: 10
   n_estimators: 100
   target_transform: none      # options: none, log1p_nonnegative
+  # XGBoost objective function.  Override in experiment YAMLs to change loss.
+  #   reg:squarederror     -- standard MSE (default)
+  #   reg:pseudohubererror -- robust to outlier targets; use objective_params
+  #                           to set huber_slope (delta); default 1.0
+  objective: reg:squarederror
+  objective_params: {}        # extra kwargs forwarded to XGBRegressor
   # Fixed params used by LOO (baseline sweep uses Optuna search; this is only
   # relevant when a section runs with a fixed XGB config).
   fixed_params:
@@ -79,6 +85,7 @@ loo:
   variants:
     - {id: exp_loo_row, leave_out_unit: row}
     - {id: exp_loo_mix, leave_out_unit: mix}
+    - {id: exp_loo_batch, leave_out_unit: batch}
   target_scope: first          # 'first' = first target per model; 'all' = every target
 
 # Sections to run for this experiment. Options:

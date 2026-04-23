@@ -249,6 +249,9 @@ def save(cfg: Config, results: ExperimentResults) -> Path:
         "sections_run": list(results.sections.keys()),
         "best": best,
         "saved_files": saved_files,
+        # Free-text annotation field.  Empty at save time; populated later via
+        # annotate_run() without re-running the experiment.
+        "notes": "",
     }
     (out_dir / "metadata.json").write_text(json.dumps(metadata, indent=2, default=str))
 
@@ -284,3 +287,66 @@ def _update_manifest(cfg: Config, metadata: dict) -> None:
     manifest["runs"].insert(0, metadata)
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(manifest, indent=2, default=str))
+
+
+def annotate_run(run_id: str, note: str, experiments_root: Path) -> None:
+    """Add or replace a free-text note on an existing manifest entry.
+
+    Notes are stored directly in the manifest JSON so they persist across
+    sessions and are visible in the notebook comparison table without
+    re-running the experiment.  The per-run ``metadata.json`` file is also
+    updated so the annotation is self-contained within the run directory.
+
+    Parameters
+    ----------
+    run_id:
+        The unique run identifier (e.g. ``'exp_001_baseline_20260421_143022'``).
+        Shown in the 'Run ID' column of the notebook comparison table.
+    note:
+        Free-text annotation.  Can be multi-line.  Replaces any existing note
+        for this run — to append, read the current note first and concatenate.
+    experiments_root:
+        Path to the top-level experiments directory (contains the manifest and
+        all run subdirectories).  Typically ``cfg.experiments_root_path``.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the manifest file does not exist.
+    KeyError
+        If ``run_id`` is not found in the manifest.
+
+    Examples
+    --------
+    >>> annotate_run(
+    ...     results.run_id,
+    ...     "Power Law best; CY5 overfit badly. Log transform helped eta_0.",
+    ...     cfg.experiments_root_path,
+    ... )
+    """
+    manifest_path = experiments_root / "experiment_manifest.json"
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"Manifest not found: {manifest_path}")
+
+    manifest = json.loads(manifest_path.read_text())
+    matched = False
+    for run in manifest["runs"]:
+        if run.get("run_id") == run_id:
+            run["notes"] = note
+            matched = True
+            break
+    if not matched:
+        raise KeyError(
+            f"run_id {run_id!r} not found in manifest. "
+            "Check the 'run_id' column in the comparison table for the correct ID."
+        )
+
+    manifest_path.write_text(json.dumps(manifest, indent=2, default=str))
+
+    # Mirror the note into the per-run metadata.json so the run directory
+    # remains self-contained and the note survives if the manifest is rebuilt.
+    run_metadata_path = experiments_root / run_id / "metadata.json"
+    if run_metadata_path.exists():
+        run_meta = json.loads(run_metadata_path.read_text())
+        run_meta["notes"] = note
+        run_metadata_path.write_text(json.dumps(run_meta, indent=2, default=str))

@@ -29,6 +29,16 @@ TWO LOO VARIANTS
     evaluation: it simulates predicting a completely unseen formulation.
     It answers: "can the model predict the rheology of a new formulation?"
 
+``leave_out_unit = 'batch'``  (LeaveOneGroupOut on Source_Batch)
+    Two folds only: train on Batch_1, test on Batch_2; then train on
+    Batch_2, test on Batch_1.  This is the most demanding evaluation —
+    it checks whether the model generalises across entirely different
+    experimental campaigns (different dates, potentially different
+    instruments or operators).  A high R² here is strong evidence that
+    the model has learned true composition–rheology relationships rather
+    than batch-specific artefacts.
+    It answers: "does the model transfer to a completely new batch?"
+
 FIXED HYPERPARAMETERS
 ---------------------
 LOO runs hundreds of folds (one per row or one per unique mix), so
@@ -102,14 +112,14 @@ def _run_one_target(
     cfg:
         Experiment configuration (fixed XGB params, feature settings, etc.).
     leave_out_unit:
-        ``'row'`` for row-level LOO or ``'mix'`` for group-level LOO.
+        ``'row'``, ``'mix'``, or ``'batch'``.
 
     Returns
     -------
     (summary_dict, fold_predictions_df)
         ``summary_dict`` contains aggregated metrics and metadata.
         ``fold_predictions_df`` has one row per held-out sample with
-        columns [fold, row_index, y_true, y_pred].
+        columns [fold, row_index, mix_id, source_batch, y_true, y_pred].
     """
     feature_cols = _feature_cols(physics_all, cfg)
 
@@ -118,6 +128,14 @@ def _run_one_target(
         # Group-level LOO: all replicates of one unique mix are held out together.
         # This is the more realistic evaluation for predicting new formulations.
         groups = physics_all[cfg.data.group_column].astype(str).to_numpy()
+        splitter = LeaveOneGroupOut()
+        split_iter = splitter.split(physics_all, groups=groups)
+        n_folds = int(np.unique(groups).size)
+    elif leave_out_unit == "batch" and "Source_Batch" in physics_all.columns:
+        # Batch-level LOO: two folds — train on Batch_1/test on Batch_2, then
+        # train on Batch_2/test on Batch_1.  The most demanding evaluation:
+        # checks cross-batch transferability of learned composition relationships.
+        groups = physics_all["Source_Batch"].astype(str).to_numpy()
         splitter = LeaveOneGroupOut()
         split_iter = splitter.split(physics_all, groups=groups)
         n_folds = int(np.unique(groups).size)
@@ -132,6 +150,8 @@ def _run_one_target(
     # per fold) and inject the project seed for reproducibility.
     xgb_params = dict(cfg.xgb.fixed_params)
     xgb_params["random_state"] = cfg.seed
+    xgb_params["objective"] = cfg.xgb.objective
+    xgb_params.update(cfg.xgb.objective_params)
 
     for fold_id, (train_idx, test_idx) in enumerate(split_iter, start=1):
         train_fold = physics_all.iloc[train_idx]
@@ -177,13 +197,18 @@ def _run_one_target(
         else:
             y_pred = y_pred_raw
 
-        # Record each held-out row's prediction with its original row index
-        # so that fold predictions can later be merged back to the source data.
+        # Record each held-out row's prediction.  mix_id and source_batch are
+        # stored so per-mix and per-batch residual analysis is possible from
+        # the saved predictions CSV without re-running the experiment.
+        mix_ids = test_fold[cfg.data.group_column].tolist() if cfg.data.group_column in test_fold.columns else [None] * len(test_idx)
+        batch_ids = test_fold["Source_Batch"].tolist() if "Source_Batch" in test_fold.columns else [None] * len(test_idx)
         for local_idx, original_idx in enumerate(test_idx):
             fold_predictions.append(
                 {
                     "fold": fold_id,
                     "row_index": int(original_idx),
+                    "mix_id": mix_ids[local_idx],
+                    "source_batch": batch_ids[local_idx],
                     "y_true": float(y_test[local_idx]),
                     "y_pred": float(y_pred[local_idx]),
                 }

@@ -1,48 +1,166 @@
 {
   "runs": [
     {
-      "run_id": "exp_001_baseline_20260420_125629",
-      "experiment_id": "exp_001_baseline",
-      "description": "Baseline: engineered features, 10 trials.",
-      "hypothesis": "Engineered features + standard tuning establish baseline performance.",
-      "created_at_utc": "2026-04-20T12:56:29.227841+00:00",
+      "run_id": "exp_009_pseudo_huber_20260421_165847",
+      "experiment_id": "exp_009_pseudo_huber",
+      "description": "Engineered features with pseudo Huber loss objective (reg:pseudohubererror), 20 Optuna trials.\n",
+      "hypothesis": "The default squared-error objective is sensitive to outlier target values. Failed physics fits fall back to the model's initial parameter vector (p0), which produces outlier targets that may not reflect real rheological behaviour. The pseudo Huber loss applies full L2 penalty to small residuals but transitions to L1-like behaviour for large residuals, down-weighting these outlier targets without discarding them entirely.\nCritically, the pseudo Huber delta (huber_slope) must be calibrated to the scale of the residuals.  Raw rheology targets span 1\u20131000 Pa\u00b7s; a delta of 1.0 would put virtually all residuals in the L1 regime, which gives the model only sign information and prevents learning.  Applying log1p_nonnegative first compresses all targets to roughly 0\u20137 natural-log units, at which point huber_slope=1.0 correctly treats residuals > ~1 log-unit as outliers while retaining full L2 learning for the majority of well-fitted rows.\nExpected outcome: improvement over exp_001 (especially for CY5 and Williamson where fit failures are most common) and complementary benefit to the log target transform tested in exp_005.\n",
+      "created_at_utc": "2026-04-21T16:58:47.068042+00:00",
+      "duration_seconds": 30.7,
       "sections_run": [
         "baseline"
       ],
       "best": {
-        "model_name": "test",
-        "test_r2": 0.9,
-        "test_rmse": 0.3
+        "model_name": "Power Law",
+        "test_r2": 0.379114069837271,
+        "test_rmse": 18.702557293163274
       },
       "saved_files": [
         "baseline_model_summary.csv",
-        "baseline_per_target.csv"
-      ]
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
     },
     {
-      "experiment_id": "exp_010_loo_only",
-      "description": "Leave-one-out generalisability evaluation (row + mix variants).",
-      "hypothesis": "LOO reveals strict generalisability; scores drop vs train/test split.",
-      "created_at_utc": "2026-04-20T12:48:40.163331+00:00",
+      "run_id": "exp_006b_high_trials_raw_20260421_161104",
+      "experiment_id": "exp_006b_high_trials_raw",
+      "description": "Engineered features, 50 Optuna trials, no target transform. Isolates the effect of a larger hyperparameter search budget while holding all other settings equal to exp_001_baseline. (raw)\n",
+      "hypothesis": "With only 10 Optuna trials (exp_001), TPE has insufficient warm-up to meaningfully exploit the 8-dimensional search space (max_depth, lr, subsample, colsample, lambda, alpha, min_child_weight, gamma).  Increasing to 50 trials gives the sampler enough exploration to identify genuinely good regularisation settings for the ~120-row training set, with diminishing returns expected beyond this point.  Gains should be most visible for models with many targets (CY5, Williamson) where 10 trials left the tuning under-converged.\n",
+      "created_at_utc": "2026-04-21T16:11:04.197287+00:00",
+      "duration_seconds": 221.7,
       "sections_run": [
-        "loo"
+        "baseline"
       ],
       "best": {
         "model_name": "Power Law",
-        "test_r2": 0.6471509009235314,
-        "test_rmse": 36.2046911377309
+        "test_r2": 0.4646742400652403,
+        "test_rmse": 19.327580626067014
       },
       "saved_files": [
-        "loo_model_summary.csv",
-        "loo_per_target.csv",
-        "loo_predictions.csv"
-      ]
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
     },
     {
+      "run_id": "exp_008_batch_feature_20260421_160649",
+      "experiment_id": "exp_008_batch_feature",
+      "description": "Engineered features plus Source_Batch as an explicit categorical input, 20 Optuna trials.  Tests whether batch identity (Batch_1 vs Batch_2) carries predictive information beyond what composition features encode.\n",
+      "hypothesis": "If the two data collection batches differ systematically in instrument calibration, temperature, mixing protocol, or other uncontrolled factors, the model could exploit batch identity as a proxy for those unmeasured variables.  A meaningful R\u00b2 improvement over exp_001 would indicate that batch effects are a significant driver of rheology variance in this dataset \u2014 an important finding because it would mean the model relies on information unavailable at deployment (the batch of a new formulation is unknown). Conversely, no improvement confirms that composition features capture the relevant physics without needing batch as a crutch. Source_Batch is encoded as a one-hot feature (Batch_1 / Batch_2) by the existing ColumnTransformer pipeline; no code change is required.\n",
+      "created_at_utc": "2026-04-21T16:06:49.848647+00:00",
+      "duration_seconds": 78.7,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.46096855043424373,
+        "test_rmse": 18.68757817922092
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_007_log_target_high_trials_20260421_160135",
+      "experiment_id": "exp_007_log_target_high_trials",
+      "description": "Engineered features, log1p target transform, and 50 Optuna trials. Combines the two improvements tested in isolation by exp_005 and exp_006 to establish the best single-model configuration explored in this project.\n",
+      "hypothesis": "Target transformation (exp_005) and a larger trial budget (exp_006) address different bottlenecks: the transform reduces bias from skewed targets while more trials reduce variance in the hyperparameter search.  When both are applied together the gains should be at least additive, and possibly super-additive if the better-calibrated search space finds optimal regularisation settings that specifically benefit the transformed target distribution.  This experiment provides the strongest baseline for comparing against LOO generalisability scores.\n",
+      "created_at_utc": "2026-04-21T16:01:35.644568+00:00",
+      "duration_seconds": 214.2,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.4412809953737074,
+        "test_rmse": 19.271618836267645
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_006b_high_trials_raw_20260421_155434",
+      "experiment_id": "exp_006b_high_trials_raw",
+      "description": "Engineered features, 50 Optuna trials, no target transform. Isolates the effect of a larger hyperparameter search budget while holding all other settings equal to exp_001_baseline. (raw)\n",
+      "hypothesis": "With only 10 Optuna trials (exp_001), TPE has insufficient warm-up to meaningfully exploit the 8-dimensional search space (max_depth, lr, subsample, colsample, lambda, alpha, min_child_weight, gamma).  Increasing to 50 trials gives the sampler enough exploration to identify genuinely good regularisation settings for the ~120-row training set, with diminishing returns expected beyond this point.  Gains should be most visible for models with many targets (CY5, Williamson) where 10 trials left the tuning under-converged.\n",
+      "created_at_utc": "2026-04-21T15:54:34.946781+00:00",
+      "duration_seconds": 268.8,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.4431258752802877,
+        "test_rmse": 19.61475175905207
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": "wrong config. engineered features were enabled when they should have been disabled. making it a duplicate of exp_006_high_trials rather than a complementary experiment isolating the effect of more trials with raw features. will fix config and re-run as exp_006b_high_trials_raw."
+    },
+    {
+      "run_id": "exp_006_high_trials_20260421_154752",
+      "experiment_id": "exp_006_high_trials",
+      "description": "Engineered features, 50 Optuna trials, no target transform. Isolates the effect of a larger hyperparameter search budget while holding all other settings equal to exp_001_baseline.\n",
+      "hypothesis": "With only 10 Optuna trials (exp_001), TPE has insufficient warm-up to meaningfully exploit the 8-dimensional search space (max_depth, lr, subsample, colsample, lambda, alpha, min_child_weight, gamma).  Increasing to 50 trials gives the sampler enough exploration to identify genuinely good regularisation settings for the ~120-row training set, with diminishing returns expected beyond this point.  Gains should be most visible for models with many targets (CY5, Williamson) where 10 trials left the tuning under-converged.\n",
+      "created_at_utc": "2026-04-21T15:47:52.075140+00:00",
+      "duration_seconds": 265.9,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.4431258752802877,
+        "test_rmse": 19.61475175905207
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_005_log_target_20260421_154534",
+      "experiment_id": "exp_005_log_target",
+      "description": "Engineered features with log1p target transform, 10 Optuna trials. Isolates the effect of applying a log transform to the rheology parameter targets (eta_0, lambda, K etc.), which are right-skewed distributions with long tails.\n",
+      "hypothesis": "Rheology parameters are right-skewed: a small number of formulations produce very high zero-shear viscosities.  Without a target transform, XGBoost's squared-error objective over-weights these outliers and under-fits the majority of formulations.  Applying log1p_nonnegative should reduce this bias and lift test R\u00b2 across most physics models, particularly those with multi-scale targets such as CY5 (eta_0 spans several orders of magnitude).\n",
+      "created_at_utc": "2026-04-21T15:45:34.329415+00:00",
+      "duration_seconds": 30.4,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.5018285720190963,
+        "test_rmse": 15.85670684670851
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_011_loo_only_raw_20260421_152756",
       "experiment_id": "exp_011_loo_only_raw",
       "description": "Leave-one-out generalisability evaluation (row + mix variants) (raw features).",
       "hypothesis": "LOO reveals strict generalisability; scores drop vs train/test split.",
-      "created_at_utc": "2026-04-20T12:44:14.185012+00:00",
+      "created_at_utc": "2026-04-21T15:27:56.574007+00:00",
+      "duration_seconds": 255.6,
       "sections_run": [
         "loo"
       ],
@@ -55,16 +173,40 @@
         "loo_model_summary.csv",
         "loo_per_target.csv",
         "loo_predictions.csv"
-      ]
+      ],
+      "notes": ""
     },
     {
+      "run_id": "exp_010_loo_only_20260421_152239",
+      "experiment_id": "exp_010_loo_only",
+      "description": "Leave-one-out generalisability evaluation (row + mix variants).",
+      "hypothesis": "LOO reveals strict generalisability; scores drop vs train/test split.",
+      "created_at_utc": "2026-04-21T15:22:39.748376+00:00",
+      "duration_seconds": 264.2,
+      "sections_run": [
+        "loo"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.6471509009235314,
+        "test_rmse": 36.2046911377309
+      },
+      "saved_files": [
+        "loo_model_summary.csv",
+        "loo_per_target.csv",
+        "loo_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_004_trials_20_raw_20260421_145230",
       "experiment_id": "exp_004_trials_20_raw",
       "description": "Higher trials + raw features.",
       "hypothesis": "Even with more tuning, raw features cannot match engineered features.",
-      "created_at_utc": "2026-04-20T12:14:23.672889+00:00",
+      "created_at_utc": "2026-04-21T14:52:30.448196+00:00",
+      "duration_seconds": 68.5,
       "sections_run": [
-        "baseline",
-        "sweep"
+        "baseline"
       ],
       "best": {
         "model_name": "Power Law",
@@ -74,19 +216,19 @@
       "saved_files": [
         "baseline_model_summary.csv",
         "baseline_per_target.csv",
-        "baseline_predictions.csv",
-        "sweep_model_summary.csv",
-        "sweep_per_target.csv"
-      ]
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
     },
     {
+      "run_id": "exp_003_raw_only_20260421_145112",
       "experiment_id": "exp_003_raw_only",
       "description": "Raw features only (no engineered features).",
       "hypothesis": "Engineered features provide measurable gain; raw features underperform.",
-      "created_at_utc": "2026-04-20T11:58:15.820653+00:00",
+      "created_at_utc": "2026-04-21T14:51:12.802008+00:00",
+      "duration_seconds": 30.6,
       "sections_run": [
-        "baseline",
-        "sweep"
+        "baseline"
       ],
       "best": {
         "model_name": "Power Law",
@@ -96,19 +238,19 @@
       "saved_files": [
         "baseline_model_summary.csv",
         "baseline_per_target.csv",
-        "baseline_predictions.csv",
-        "sweep_model_summary.csv",
-        "sweep_per_target.csv"
-      ]
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
     },
     {
+      "run_id": "exp_002_trials_20_20260421_144927",
       "experiment_id": "exp_002_trials_20",
       "description": "Higher trial budget: 20 Optuna trials.",
       "hypothesis": "More trials lead to better hyperparameter tuning and modest R\u00b2 improvement.",
-      "created_at_utc": "2026-04-20T11:48:42.831230+00:00",
+      "created_at_utc": "2026-04-21T14:49:27.551810+00:00",
+      "duration_seconds": 70.1,
       "sections_run": [
-        "baseline",
-        "sweep"
+        "baseline"
       ],
       "best": {
         "model_name": "Power Law",
@@ -118,19 +260,19 @@
       "saved_files": [
         "baseline_model_summary.csv",
         "baseline_per_target.csv",
-        "baseline_predictions.csv",
-        "sweep_model_summary.csv",
-        "sweep_per_target.csv"
-      ]
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
     },
     {
+      "run_id": "exp_001_baseline_20260421_144712",
       "experiment_id": "exp_001_baseline",
       "description": "Baseline: engineered features, 10 trials.",
       "hypothesis": "Engineered features + standard tuning establish baseline performance.",
-      "created_at_utc": "2026-04-20T11:27:35.152265+00:00",
+      "created_at_utc": "2026-04-21T14:47:12.269657+00:00",
+      "duration_seconds": 33.3,
       "sections_run": [
-        "baseline",
-        "sweep"
+        "baseline"
       ],
       "best": {
         "model_name": "Power Law",
@@ -140,10 +282,9 @@
       "saved_files": [
         "baseline_model_summary.csv",
         "baseline_per_target.csv",
-        "baseline_predictions.csv",
-        "sweep_model_summary.csv",
-        "sweep_per_target.csv"
-      ]
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
     }
   ]
 }

@@ -1,0 +1,26 @@
+defaults: base
+id: exp_007_log_target_high_trials
+description: >
+  Engineered features, log1p target transform, and 50 Optuna trials.
+  Combines the two improvements tested in isolation by exp_005 and exp_006
+  to establish the best single-model configuration explored in this project.
+hypothesis: >
+  Target transformation (exp_005) and a larger trial budget (exp_006) address
+  different bottlenecks: the transform reduces bias from skewed targets while
+  more trials reduce variance in the hyperparameter search.  When both are
+  applied together the gains should be at least additive, and possibly
+  super-additive if the better-calibrated search space finds optimal
+  regularisation settings that specifically benefit the transformed target
+  distribution.  This experiment provides the strongest baseline for
+  comparing against LOO generalisability scores.
+
+features:
+  use_engineered: true
+  log_numeric: false
+
+xgb:
+  n_trials: 50
+  target_transform: log1p_nonnegative
+
+run:
+  sections: [baseline]

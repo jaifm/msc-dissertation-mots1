@@ -17,4 +17,5 @@ loo.py
 results.py
     ``SectionResult`` and ``ExperimentResults`` dataclasses, plus ``save``
     for writing CSVs, config snapshots, and the experiment manifest.
+    ``annotate_run`` adds free-text notes to completed runs in the manifest.
 """

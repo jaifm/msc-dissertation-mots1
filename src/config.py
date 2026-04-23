@@ -94,6 +94,14 @@ class XgbCfg:
     n_trials: int
     n_estimators: int
     target_transform: str
+    # XGBoost objective function.  Common options:
+    #   reg:squarederror      -- standard MSE (default; sensitive to outliers)
+    #   reg:pseudohubererror  -- pseudo Huber loss; robust to outlier targets
+    #                            (failed physics fits fall back to initial params
+    #                             and become outliers; this objective down-weights them)
+    # Use objective_params to pass extra arguments, e.g. {huber_slope: 1.0}.
+    objective: str
+    objective_params: Dict[str, Any]
     fixed_params: Dict[str, Any]
 
 
@@ -181,6 +189,7 @@ class Config:
 
 _VALID_SECTIONS = {"baseline", "sweep", "loo"}
 _VALID_TARGET_TRANSFORMS = {"none", "log1p_nonnegative"}
+_VALID_OBJECTIVES = {"reg:squarederror", "reg:pseudohubererror", "reg:absoluteerror"}
 
 
 def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
@@ -238,6 +247,11 @@ def _validate(cfg: Config) -> None:
         raise ValueError(
             f"Unknown xgb.target_transform={cfg.xgb.target_transform!r}. "
             f"Valid: {sorted(_VALID_TARGET_TRANSFORMS)}"
+        )
+    if cfg.xgb.objective not in _VALID_OBJECTIVES:
+        raise ValueError(
+            f"Unknown xgb.objective={cfg.xgb.objective!r}. "
+            f"Valid: {sorted(_VALID_OBJECTIVES)}"
         )
     for model_key in cfg.physics.models:
         if model_key not in cfg.physics.targets:
