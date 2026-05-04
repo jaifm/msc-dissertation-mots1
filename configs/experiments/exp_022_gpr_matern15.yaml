@@ -1,0 +1,61 @@
+defaults: base
+
+id: exp_022_gpr_matern15
+description: >
+  GPR kernel comparison: same fixes as exp_021 but Matern(nu=1.5) instead of
+  the composite Matern25+DotProduct kernel.
+hypothesis: >
+  exp_021 uses a composite Matern(nu=2.5)+DotProduct kernel, assuming a
+  smooth nonlinear + linear composition-viscosity relationship.  This
+  experiment tests whether a rougher single kernel — Matern(nu=1.5), which
+  is only once mean-square differentiable — fits the data better.  The
+  physical motivation is that battery slurry rheology can have sharp
+  transitions: C65 carbon black forms a percolating stress network at a
+  critical loading (~2 wt%), which introduces a near-discontinuous change
+  in eta_0 and lambda_time that a twice-differentiable kernel may smooth
+  over.  nu=1.5 allows the kernel to track such sharp changes more
+  faithfully without requiring the linear DotProduct component.
+  All other settings (ARD, 20 restarts, OHE standardisation, duplicate
+  removal, per-target transforms) are identical to exp_021 so the only
+  variable is the kernel family.
+
+physics:
+  models:
+    - power_law
+    - sisko
+    - williamson
+
+features:
+  exclude_cols:
+    - PVDF_pct
+    - NMC_pct
+    - NMC_to_binder
+    - conductive_to_binder
+    - conductive_total
+    - nonbinder_total
+    - binder_share
+    - log1p_C65_pct
+    - log1p_KS6L_pct
+    - log1p_Solid_Additive_pct
+    - solid_x_conductive
+    - solid_x_nmc
+
+gpr:
+  kernel: matern15
+  n_restarts: 20
+  normalize_y: true
+  ard: true
+  target_transform: none
+  per_target_transforms:
+    k_consistency:    log1p_nonnegative
+    k_sisko:          log1p_nonnegative
+    eta_0:            log1p_nonnegative
+    eta_inf:          log1p_nonnegative
+    eta_inf_sisko:    log1p_nonnegative
+    n_flow:           log1p_nonnegative
+    n_sisko:          log1p_nonnegative
+    n_w:              log1p_nonnegative
+    lambda_time:      log1p_nonnegative
+
+run:
+  sections: [gpr_baseline]

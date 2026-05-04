@@ -51,10 +51,14 @@ from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import FunctionTransformer, OneHotEncoder
+from sklearn.preprocessing import FunctionTransformer, OneHotEncoder, PolynomialFeatures
 
 
-def make_preprocessor(X_df: pd.DataFrame, log_numeric_features: bool = False) -> ColumnTransformer:
+def make_preprocessor(
+    X_df: pd.DataFrame,
+    log_numeric_features: bool = False,
+    poly_degree: int = 0,
+) -> ColumnTransformer:
     """Build a ColumnTransformer that one-hot-encodes categoricals and
     imputes (+optionally log1p-transforms) numerics.
 
@@ -71,6 +75,13 @@ def make_preprocessor(X_df: pd.DataFrame, log_numeric_features: bool = False) ->
     log_numeric_features:
         When True, appends a log1p step after imputation for all numeric
         columns.  Useful for right-skewed features (see the sweep section).
+    poly_degree:
+        When > 1, appends a ``PolynomialFeatures(degree=poly_degree,
+        include_bias=False)`` step to the numeric sub-pipeline after
+        imputation.  Applied only to numeric columns; OHE output is
+        unaffected.  Degree 2 with N numeric features adds N² terms
+        (squared + pairwise products), making interactions explicit for
+        XGBoost single-split capture.
 
     Returns
     -------
@@ -121,6 +132,16 @@ def make_preprocessor(X_df: pd.DataFrame, log_numeric_features: bool = False) ->
                     ),
                 )
             )
+
+        if poly_degree > 1:
+            # Degree-2 expansion: adds x_i^2 and x_i*x_j terms for all
+            # numeric pairs.  include_bias=False omits the constant column
+            # (XGBoost has its own bias via the tree intercept).
+            # Applied after imputation so no NaN reaches the polynomial step.
+            steps.append(
+                ("poly", PolynomialFeatures(degree=poly_degree, include_bias=False))
+            )
+
         transformers.append(("num", Pipeline(steps), numeric_cols))
 
     # remainder='drop' ensures that target columns or any other column not

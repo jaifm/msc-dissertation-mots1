@@ -63,6 +63,16 @@ LOO metrics are computed by concatenating all held-out predictions across
 folds and computing R², MSE, and RMSE over the full pooled set.  This is
 equivalent to the overall prediction accuracy if the model were deployed on
 all formulations in the dataset simultaneously.
+
+PER-FOLD SUMMARY
+----------------
+In addition to the pooled metrics, ``run_loo`` now collects a per-fold
+breakdown (``SectionResult.fold_summary``) that records what was left out
+in each fold and the fold-level R².  For mix/batch LOO each fold covers
+multiple samples so fold R² is meaningful; for row LOO (one sample per
+fold) R² is set to NaN and only RMSE is reported.
+
+This is saved as ``loo_fold_summary.csv`` alongside the standard outputs.
 """
 from __future__ import annotations
 
@@ -95,9 +105,11 @@ def _run_one_target(
     For each fold, the function:
       1. Splits the data into train/test folds using the specified leave-out
          strategy.
-      2. Applies feature engineering and preprocessing to the fold's training
-         data, then transforms the test fold with the same fitted preprocessor.
-      3. Optionally applies the target transform (log1p_nonnegative).
+      2. Applies feature engineering, SHAP-guided exclusions, and preprocessing
+         to the fold's training data, then transforms the test fold with the
+         same fitted preprocessor.
+      3. Applies the per-target transform (``cfg.xgb.per_target_transforms``
+         takes priority over the global ``cfg.xgb.target_transform``).
       4. Trains an XGBoost model with the fixed hyperparameters from the config.
       5. Predicts on the held-out fold and inverts the target transform.
       6. Stores (y_true, y_pred, fold_id, row_index) for every held-out row.
@@ -153,6 +165,11 @@ def _run_one_target(
     xgb_params["objective"] = cfg.xgb.objective
     xgb_params.update(cfg.xgb.objective_params)
 
+    # Per-target transform: per-target override takes priority over global.
+    transform_mode = (
+        cfg.xgb.per_target_transforms.get(target_col) or cfg.xgb.target_transform
+    )
+
     for fold_id, (train_idx, test_idx) in enumerate(split_iter, start=1):
         train_fold = physics_all.iloc[train_idx]
         test_fold = physics_all.iloc[test_idx]
@@ -169,17 +186,27 @@ def _run_one_target(
             X_train = X_train_raw
             X_test = X_test_raw
 
+        # Apply SHAP-guided feature exclusions — mirrors the baseline XGBoost path.
+        exclude = cfg.features.exclude_cols or []
+        if exclude:
+            X_train = X_train.drop(columns=[c for c in exclude if c in X_train.columns])
+            X_test = X_test.drop(columns=[c for c in exclude if c in X_test.columns])
+
         # Fit the preprocessor on this fold's training data only — never
         # on the held-out test fold.  This prevents the OHE category list
         # and imputation statistics from seeing test data.
-        preprocessor = make_preprocessor(X_train, log_numeric_features=cfg.features.log_numeric)
+        preprocessor = make_preprocessor(
+            X_train,
+            log_numeric_features=cfg.features.log_numeric,
+            poly_degree=cfg.features.poly_degree,
+        )
         X_train_proc = preprocessor.fit_transform(X_train)
         X_test_proc = preprocessor.transform(X_test)
 
         # Target transform: compute the shift from training data only so that
         # the shift value cannot leak information about the test fold's targets.
         target_shift = 0.0
-        if cfg.xgb.target_transform == "log1p_nonnegative":
+        if transform_mode == "log1p_nonnegative":
             min_train = float(np.min(y_train))
             if min_train <= -1.0:
                 target_shift = abs(min_train) + 1.001
@@ -192,7 +219,7 @@ def _run_one_target(
         y_pred_raw = model.predict(X_test_proc)
 
         # Invert the target transform to get predictions on the original scale.
-        if cfg.xgb.target_transform == "log1p_nonnegative":
+        if transform_mode == "log1p_nonnegative":
             y_pred = np.expm1(y_pred_raw) - target_shift
         else:
             y_pred = y_pred_raw
@@ -230,6 +257,59 @@ def _run_one_target(
     return summary, fold_pred_df
 
 
+def _fold_summary(fold_pred_df: pd.DataFrame, leave_out_unit: str) -> pd.DataFrame:
+    """Compute per-fold metrics from pooled fold predictions.
+
+    For mix/batch LOO each fold may contain multiple samples (replicates of
+    the same formulation, or all formulations in one batch), so per-fold R²
+    is meaningful.  For row LOO (one sample per fold) R² is undefined and
+    set to NaN; only RMSE is reported.
+
+    Parameters
+    ----------
+    fold_pred_df:
+        Output of ``_run_one_target``: one row per held-out sample.
+    leave_out_unit:
+        ``'row'``, ``'mix'``, or ``'batch'``.  Controls which column is used
+        as the ``left_out`` label.
+
+    Returns
+    -------
+    DataFrame with columns:
+        fold, left_out, n_samples, test_r2, test_mse, test_rmse
+    """
+    rows = []
+    for fold_id, group in fold_pred_df.groupby("fold"):
+        y_true = group["y_true"].to_numpy()
+        y_pred = group["y_pred"].to_numpy()
+        n = len(group)
+
+        if leave_out_unit == "mix":
+            left_out = str(group["mix_id"].iloc[0])
+        elif leave_out_unit == "batch":
+            left_out = str(group["source_batch"].iloc[0])
+        else:
+            left_out = str(group["row_index"].iloc[0])
+
+        if n > 1:
+            r2, mse, rmse = r2_mse_rmse(y_true, y_pred)
+        else:
+            diff = float(y_true[0] - y_pred[0])
+            r2 = float("nan")
+            mse = float(diff ** 2)
+            rmse = float(abs(diff))
+
+        rows.append({
+            "fold": int(fold_id),
+            "left_out": left_out,
+            "n_samples": n,
+            "test_r2": r2,
+            "test_mse": mse,
+            "test_rmse": rmse,
+        })
+    return pd.DataFrame(rows)
+
+
 def run_loo(
     physics_datasets: Dict[str, Dict[str, pd.DataFrame]], cfg: Config
 ) -> SectionResult:
@@ -246,6 +326,8 @@ def run_loo(
         the selected targets.
       - ``per_target``: one row per (variant, model, target).
       - ``predictions``: all fold-level (y_true, y_pred) records.
+      - ``fold_summary``: per-fold breakdown showing what was left out in each
+        fold and the fold-level R² (NaN for row LOO, meaningful for mix/batch).
 
     Parameters
     ----------
@@ -262,6 +344,7 @@ def run_loo(
     per_target_rows: List[dict] = []
     model_summary_rows: List[dict] = []
     all_preds: List[pd.DataFrame] = []
+    all_fold_summaries: List[pd.DataFrame] = []
 
     for variant in cfg.loo.variants:
         print(f"\n{'='*70}\nLOO variant: {variant.id} (leave_out_unit={variant.leave_out_unit})\n{'='*70}")
@@ -305,6 +388,17 @@ def run_loo(
                     )
                 )
 
+                # Per-fold breakdown: records what was left out and fold-level R².
+                fs = _fold_summary(fold_preds, variant.leave_out_unit)
+                fs = fs.assign(
+                    model_name=display_name,
+                    model_key=model_key,
+                    target=target_col,
+                    variant_id=variant.id,
+                    leave_out_unit=variant.leave_out_unit,
+                )
+                all_fold_summaries.append(fs)
+
             if model_rows:
                 model_summary_rows.append(
                     {
@@ -320,6 +414,12 @@ def run_loo(
                 mean_r2 = model_summary_rows[-1]["test_r2"]
                 print(f"  {display_name:18s} | mean R²={mean_r2:.4f}")
 
+    fold_summary_df = (
+        pd.concat(all_fold_summaries, ignore_index=True)
+        if all_fold_summaries
+        else None
+    )
+
     return SectionResult(
         name="loo",
         model_summary=pd.DataFrame(model_summary_rows)
@@ -327,4 +427,5 @@ def run_loo(
         .reset_index(drop=True),
         per_target=pd.DataFrame(per_target_rows),
         predictions=pd.concat(all_preds, ignore_index=True) if all_preds else None,
+        fold_summary=fold_summary_df,
     )

@@ -101,6 +101,7 @@ class SectionResult:
     model_summary: pd.DataFrame
     per_target: pd.DataFrame
     predictions: Optional[pd.DataFrame] = None
+    fold_summary: Optional[pd.DataFrame] = None
 
     def sorted_by_r2(self) -> pd.DataFrame:
         """Return model_summary sorted by test R² descending.
@@ -227,6 +228,10 @@ def save(cfg: Config, results: ExperimentResults) -> Path:
             pp = out_dir / f"{base}predictions.csv"
             section.predictions.to_csv(pp, index=False)
             saved_files.append(pp.name)
+        if section.fold_summary is not None and not section.fold_summary.empty:
+            fp = out_dir / f"{base}fold_summary.csv"
+            section.fold_summary.to_csv(fp, index=False)
+            saved_files.append(fp.name)
 
     # Save the fully resolved config at run time so results are self-contained.
     # This snapshot includes any overrides from the experiment YAML, so the
@@ -238,7 +243,13 @@ def save(cfg: Config, results: ExperimentResults) -> Path:
     # Per-run metadata record: a compact summary that the manifest and the
     # notebook comparison cell can display without loading the full CSVs.
     # 'best' falls through the three section names in priority order.
-    best = results.best("baseline") or results.best("sweep") or results.best("loo")
+    best = (
+        results.best("baseline")
+        or results.best("sweep")
+        or results.best("loo")
+        or results.best("gpr_baseline")
+        or results.best("gpr_xgb_ensemble")
+    )
     metadata = {
         "run_id": results.run_id,
         "experiment_id": results.experiment_id,

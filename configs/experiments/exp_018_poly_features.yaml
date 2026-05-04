@@ -1,0 +1,47 @@
+defaults: base
+
+id: exp_018_poly_features
+description: >
+  SHAP-pruned features (12 retained) with degree-2 polynomial expansion of
+  numeric columns. Power Law, Sisko, Williamson. Per-target log1p transforms.
+hypothesis: >
+  The SHAP analysis (exp_017) confirmed that Solid_Content_pct and its
+  first-order products dominate prediction.  However, the composition-to-
+  rheology relationship is nonlinear: Krieger-Dougherty theory predicts
+  viscosity ~ (1 - phi/phi_max)^-2, and the shear-thinning index responds
+  to the interplay between conductive network strength and overall packing.
+  A degree-2 polynomial expansion of the 8 numeric features makes explicit
+  squared terms (Solid_Content_pct^2, C65_pct^2) and cross-product terms not
+  already present (e.g. C65_pct * solid_to_additive), giving XGBoost access
+  to second-order structure without requiring deep trees to discover it through
+  consecutive splits.  With 8 numeric features the expansion yields 44 numeric
+  columns (8 + 8 squared + 28 pairs) plus ~4 OHE columns — still well within
+  the regularised XGBoost regime for a 136-row training set.
+
+physics:
+  models:
+    - power_law
+    - sisko
+    - williamson
+
+features:
+  use_engineered: true
+  exclude_cols:
+    - PVDF_pct
+    - NMC_pct
+    - NMC_to_binder
+    - conductive_to_binder
+    - conductive_total
+    - nonbinder_total
+    - binder_share
+    - log1p_C65_pct
+    - log1p_KS6L_pct
+    - log1p_Solid_Additive_pct
+  poly_degree: 2
+
+xgb:
+  n_trials: 10
+  target_transform: log1p_nonnegative  # shift-then-log1p applied to each target
+
+run:
+  sections: [baseline]

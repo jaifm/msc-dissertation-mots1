@@ -1,0 +1,64 @@
+defaults: base
+
+id: exp_024_loo_optimised
+description: >
+  Optimised LOO: reduced scope (Power Law, Sisko, Williamson), SHAP-pruned
+  feature set, per-target log1p transforms. Three variants: row, mix, batch.
+  Per-fold breakdown saved to loo_fold_summary.csv showing exactly what was
+  left out in each fold and the fold-level R².
+hypothesis: >
+  Earlier LOO experiments (exp_010, exp_011) used all five physics models and
+  the full un-pruned feature set without per-target transforms, making them
+  incomparable to the optimised baseline.  This experiment re-runs LOO with
+  the same configuration as exp_017 (reduced scope, SHAP-pruned features,
+  per-target log1p) so that LOO generalisation scores are directly comparable
+  to the held-out test R² values from that experiment.
+  Three leave-out granularities are evaluated:
+    row   — leaves out one measurement; optimistic (replicates share train/test)
+    mix   — leaves out one unique formulation (Composite_Mix_ID); the most
+            realistic simulation of predicting a new composition
+    batch — leaves out one experimental batch; the hardest test, checking
+            whether composition–rheology relationships transfer across campaigns
+
+physics:
+  models:
+    - power_law
+    - sisko
+    - williamson
+
+features:
+  exclude_cols:
+    - PVDF_pct
+    - NMC_pct
+    - NMC_to_binder
+    - conductive_to_binder
+    - conductive_total
+    - nonbinder_total
+    - binder_share
+    - log1p_C65_pct
+    - log1p_KS6L_pct
+    - log1p_Solid_Additive_pct
+
+xgb:
+  n_trials: 10
+  target_transform: none
+  per_target_transforms:
+    k_consistency:    log1p_nonnegative
+    k_sisko:          log1p_nonnegative
+    eta_0:            log1p_nonnegative
+    eta_inf:          log1p_nonnegative
+    eta_inf_sisko:    log1p_nonnegative
+    n_flow:           log1p_nonnegative
+    n_sisko:          log1p_nonnegative
+    n_w:              log1p_nonnegative
+    lambda_time:      log1p_nonnegative
+
+loo:
+  variants:
+    - {id: loo_row,   leave_out_unit: row}
+    - {id: loo_mix,   leave_out_unit: mix}
+    - {id: loo_batch, leave_out_unit: batch}
+  target_scope: first
+
+run:
+  sections: [loo]

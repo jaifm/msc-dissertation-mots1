@@ -1,0 +1,74 @@
+defaults: base
+
+id: exp_023_gpr_xgb_ensemble
+description: >
+  Equal-weight ensemble of the best GPR (exp_021: Matern25+Linear, ARD,
+  20 restarts) and XGBoost (exp_017 feature set) on reduced scope.
+hypothesis: >
+  GPR and XGBoost make structurally different errors: GPR interpolates
+  smoothly through kernel-distance space and captures the continuous
+  composition-viscosity trend; XGBoost builds step-function boundaries
+  driven by information gain and is better at fitting discrete-grid
+  formulation effects (e.g. the sharp change at ~2 wt% C65 loading).
+  On a 120-row dataset where neither model is large-data-asymptotically
+  optimal, their residuals are partially uncorrelated — simple equal-
+  weight averaging should reduce total predictive variance without
+  introducing additional hyperparameters.
+  GPR settings mirror exp_021 (matern25_linear, ARD, 20 restarts, per-
+  target log1p, OHE standardisation, duplicate features removed).
+  XGBoost uses the same feature set and per-target transforms.
+
+physics:
+  models:
+    - power_law
+    - sisko
+    - williamson
+
+features:
+  exclude_cols:
+    - PVDF_pct
+    - NMC_pct
+    - NMC_to_binder
+    - conductive_to_binder
+    - conductive_total
+    - nonbinder_total
+    - binder_share
+    - log1p_C65_pct
+    - log1p_KS6L_pct
+    - log1p_Solid_Additive_pct
+    - solid_x_conductive
+    - solid_x_nmc
+
+xgb:
+  n_trials: 30
+  target_transform: none
+  per_target_transforms:
+    k_consistency:    log1p_nonnegative
+    k_sisko:          log1p_nonnegative
+    eta_0:            log1p_nonnegative
+    eta_inf:          log1p_nonnegative
+    eta_inf_sisko:    log1p_nonnegative
+    n_flow:           log1p_nonnegative
+    n_sisko:          log1p_nonnegative
+    n_w:              log1p_nonnegative
+    lambda_time:      log1p_nonnegative
+
+gpr:
+  kernel: matern25_linear
+  n_restarts: 20
+  normalize_y: true
+  ard: true
+  target_transform: none
+  per_target_transforms:
+    k_consistency:    log1p_nonnegative
+    k_sisko:          log1p_nonnegative
+    eta_0:            log1p_nonnegative
+    eta_inf:          log1p_nonnegative
+    eta_inf_sisko:    log1p_nonnegative
+    n_flow:           log1p_nonnegative
+    n_sisko:          log1p_nonnegative
+    n_w:              log1p_nonnegative
+    lambda_time:      log1p_nonnegative
+
+run:
+  sections: [gpr_xgb_ensemble]

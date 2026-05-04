@@ -103,6 +103,12 @@ def run_experiment(cfg: Config, *, persist: bool = True) -> ExperimentResults:
         results.add(sweep_module.run_sweep(physics_datasets, cfg))
     if "loo" in cfg.run.sections:
         results.add(loo_module.run_loo(physics_datasets, cfg))
+    if "gpr_baseline" in cfg.run.sections:
+        from . import gpr_section as gpr_module
+        results.add(gpr_module.run_gpr_baseline(physics_datasets, cfg))
+    if "gpr_xgb_ensemble" in cfg.run.sections:
+        from . import ensemble_section as ens_module
+        results.add(ens_module.run_gpr_xgb_ensemble(physics_datasets, cfg))
     results.duration_seconds = round(time.perf_counter() - _start, 1)
 
     # Step 4: optionally persist all outputs.
@@ -113,7 +119,11 @@ def run_experiment(cfg: Config, *, persist: bool = True) -> ExperimentResults:
         print(f"Duration : {_fmt_duration(results.duration_seconds)}")
 
     # Step 5: print a compact best-model summary for quick inspection.
-    best = results.best()
+    best = (
+        results.best("baseline") or results.best("sweep")
+        or results.best("loo") or results.best("gpr_baseline")
+        or results.best("gpr_xgb_ensemble")
+    )
     if best:
         print(
             f"\nBest model (mean test R²): {best['model_name']} "

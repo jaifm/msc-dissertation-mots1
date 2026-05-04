@@ -32,33 +32,9 @@ The hyperparameters searched per trial are:
   colsample_bytree [0.5, 1.0]     -- feature sampling fraction per tree; reduces correlation
   lambda (L2)      [0.001, 10]    -- weight decay (log scale); shrinks leaf values
   alpha  (L1)      [0.001, 10]    -- sparsity regularisation (log scale)
-  min_child_weight [1, 10]        -- minimum sum of instance weights in a leaf; critical for
-                                     small datasets — higher values prevent the model from
-                                     fitting splits that are driven by only 1–2 rows
-  gamma            [0.0, 5.0]     -- minimum loss reduction required to make a split; acts as
-                                     a tree-complexity penalty that prunes splits with marginal
-                                     benefit, complementing L2/L1 weight regularisation
 
-EARLY STOPPING
---------------
-Each Optuna trial uses ``_N_ESTIMATORS_SEARCH`` trees with early stopping
-(``_EARLY_STOPPING_ROUNDS`` rounds of no validation-R² improvement).  This
-serves two purposes:
-
-  1. **Efficiency**: trials that plateau early stop rather than wasting time
-     training trees that no longer improve the held-out score.
-  2. **Best-iteration transfer**: the trial stores its best_iteration as a
-     user attribute.  The winning trial's best_iteration is used directly as
-     n_estimators for the final model, rather than the fixed config value.
-     This is more principled than a hand-picked constant because it is derived
-     from the actual learning curve of the best hyperparameter combination.
-
-The final model is retrained on the FULL training set (no held-out validation
-fold) using the early-stopped iteration count.  Because training on ~25% more
-data tends to delay convergence slightly, the iteration count is multiplied by
-``_FINAL_N_EST_SCALE`` (default 1.1) before use and capped at
-``_FINAL_N_EST_CAP``.  If early stopping did not fire for the best trial,
-``cfg.xgb.n_estimators`` is used as a fallback.
+The 6-parameter space keeps each Optuna trial budget focused: with ~10–25 trials
+and a small dataset, a wider space is under-explored by TPE and hurts reliability.
 
 TARGET TRANSFORM
 ----------------
@@ -89,33 +65,6 @@ from .pipeline import make_preprocessor, r2_mse_rmse
 # progress output and double-printing every trial wastes notebook space.
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
-# ---------------------------------------------------------------------------
-# Early-stopping tuning constants
-# ---------------------------------------------------------------------------
-
-# Upper bound on n_estimators used inside each Optuna trial.  Trials stop
-# early via _EARLY_STOPPING_ROUNDS so most will never reach this cap.
-# Setting it to 300 (vs the old fixed 100) gives low-learning-rate configs
-# enough trees to actually converge, while early stopping prevents waste.
-_N_ESTIMATORS_SEARCH: int = 300
-
-# Number of consecutive validation-R² rounds with no improvement before a
-# trial is cut short.  20 is conservative enough that genuine plateaus are
-# detected without cutting off configs that improve slowly.
-_EARLY_STOPPING_ROUNDS: int = 20
-
-# Scale factor applied to the best trial's early-stopped iteration count when
-# setting n_estimators for the final model.  The final model trains on ~25%
-# more data (full training set vs 80% fold), so it typically needs slightly
-# more trees to reach the same loss level.  1.1 is a small, principled
-# correction; set to 1.0 to disable scaling.
-_FINAL_N_EST_SCALE: float = 1.1
-
-# Hard cap on the final model's n_estimators after scaling.  Prevents
-# pathological cases where best_iteration is very large from producing an
-# impractically slow final fit.
-_FINAL_N_EST_CAP: int = 500
-
 
 def _make_xgb_objective(
     X_train: np.ndarray,
@@ -123,6 +72,7 @@ def _make_xgb_objective(
     seed: int,
     objective_fn: str = "reg:squarederror",
     objective_params: dict | None = None,
+    n_estimators: int = 100,
 ):
     """Return an Optuna objective function that scores one hyperparameter trial.
 
@@ -148,9 +98,6 @@ def _make_xgb_objective(
     -------
     Callable
         Optuna objective that accepts a ``Trial`` and returns a float R².
-        After each trial completes, ``trial.user_attrs['best_iteration']``
-        holds the early-stopped tree count, which the caller uses to set
-        n_estimators for the final model.
     """
     n = len(X_train)
     split = int(0.8 * n)
@@ -167,35 +114,14 @@ def _make_xgb_objective(
             "colsample_bytree": trial.suggest_float("colsample_bytree", 0.5, 1.0),
             "lambda": trial.suggest_float("lambda", 1e-3, 10.0, log=True),
             "alpha": trial.suggest_float("alpha", 1e-3, 10.0, log=True),
-            # min_child_weight: minimum sum of instance weights required in a
-            # leaf node before a split is accepted.  With ~100–150 training
-            # rows, the default of 1 allows splits on single rows, which
-            # overfit heavily.  Searching [1, 10] lets Optuna discover how
-            # much leaf-size regularisation this dataset needs.
-            "min_child_weight": trial.suggest_int("min_child_weight", 1, 10),
-            # gamma: minimum loss-reduction gain for a split to be accepted.
-            # Complementary to L2/L1 regularisation — it prunes splits that
-            # reduce training loss only marginally, acting as an explicit
-            # tree-complexity penalty.
-            "gamma": trial.suggest_float("gamma", 0.0, 5.0),
             "objective": objective_fn,
             **extra,
             "random_state": seed,
-            "n_estimators": _N_ESTIMATORS_SEARCH,
-            # early_stopping_rounds is set on the constructor (XGBoost ≥ 1.7
-            # sklearn API); eval_set passed to fit() activates it.
-            "early_stopping_rounds": _EARLY_STOPPING_ROUNDS,
+            "n_estimators": n_estimators,
             "verbosity": 0,
         }
         model = xgb.XGBRegressor(**params)
-        model.fit(
-            X_fit, y_fit,
-            eval_set=[(X_val, y_val)],
-            verbose=False,
-        )
-        # Store the early-stopped iteration so the best trial's count can be
-        # used as n_estimators in the final model (see tune_and_evaluate_xgb).
-        trial.set_user_attr("best_iteration", int(model.best_iteration))
+        model.fit(X_fit, y_fit)
         r2, _, _ = r2_mse_rmse(y_val, model.predict(X_val))
         return r2
 
@@ -218,12 +144,18 @@ def _apply_target_transform(y: np.ndarray, mode: str) -> Tuple[np.ndarray, float
         ``'none'`` -- no transform, return y unchanged.
         ``'log1p_nonnegative'`` -- shift y so min > 0, then apply log1p.
             The shift is computed from training data only.
+        ``'logit'`` -- maps (0, 1) → ℝ via log(y / (1−y)).  Appropriate for
+            flow-index parameters (n_flow, n_sisko, n_w, n) that are bounded
+            in (0, 1) by physics.  Values are clipped to (1e-6, 1−1e-6)
+            before applying logit to guard against degenerate physics fits
+            that land exactly on the boundary.
 
     Returns
     -------
     (transformed_y, shift)
         ``shift`` must be passed to ``_invert_target_transform`` at prediction
-        time to recover predictions on the original scale.
+        time to recover predictions on the original scale.  For ``'logit'``
+        and ``'none'``, ``shift`` is always 0.0 and is ignored on inversion.
     """
     if mode == "none":
         return y, 0.0
@@ -234,6 +166,10 @@ def _apply_target_transform(y: np.ndarray, mode: str) -> Tuple[np.ndarray, float
         # to log1p(0.001) > 0.
         shift = abs(min_y) + 1.001 if min_y <= -1.0 else 0.0
         return np.log1p(y + shift), shift
+    if mode == "logit":
+        _EPS = 1e-6
+        y_clipped = np.clip(y, _EPS, 1.0 - _EPS)
+        return np.log(y_clipped / (1.0 - y_clipped)), 0.0
     raise ValueError(f"Unknown target_transform mode: {mode}")
 
 
@@ -249,6 +185,9 @@ def _invert_target_transform(y_pred: np.ndarray, mode: str, shift: float) -> np.
     if mode == "log1p_nonnegative":
         # expm1(x) - shift is the exact inverse of log1p(y + shift).
         return np.expm1(y_pred) - shift
+    if mode == "logit":
+        # sigmoid is the exact inverse of logit.
+        return 1.0 / (1.0 + np.exp(-y_pred))
     raise ValueError(mode)
 
 
@@ -325,16 +264,30 @@ def tune_and_evaluate_xgb(
         X_train = X_train_raw
         X_test = X_test_raw
 
+    # Drop any columns listed in features.exclude_cols (SHAP-guided pruning).
+    exclude = cfg.features.exclude_cols or []
+    if exclude:
+        drop_train = [c for c in exclude if c in X_train.columns]
+        drop_test  = [c for c in exclude if c in X_test.columns]
+        X_train = X_train.drop(columns=drop_train)
+        X_test  = X_test.drop(columns=drop_test)
+
     # --- Step 3: preprocessing -----------------------------------------------
     # Fit the preprocessor on training data only; transform both splits.
     # This ensures that OHE category levels and imputation statistics are
     # derived from the training distribution, not the test distribution.
-    preprocessor = make_preprocessor(X_train, log_numeric_features=log_numeric_features)
+    preprocessor = make_preprocessor(
+        X_train,
+        log_numeric_features=log_numeric_features,
+        poly_degree=cfg.features.poly_degree,
+    )
     X_train_proc = preprocessor.fit_transform(X_train)
     X_test_proc = preprocessor.transform(X_test)
 
     # --- Step 4: target transform --------------------------------------------
-    y_train_model, shift = _apply_target_transform(y_train, cfg.xgb.target_transform)
+    # Per-target override takes priority; fall back to the global setting.
+    transform_mode = cfg.xgb.per_target_transforms.get(target_col) or cfg.xgb.target_transform
+    y_train_model, shift = _apply_target_transform(y_train, transform_mode)
 
     # --- Step 5: Optuna hyperparameter search --------------------------------
     study = optuna.create_study(direction="maximize", sampler=TPESampler(seed=cfg.seed))
@@ -343,29 +296,19 @@ def tune_and_evaluate_xgb(
             X_train_proc, y_train_model, cfg.seed,
             objective_fn=cfg.xgb.objective,
             objective_params=cfg.xgb.objective_params,
+            n_estimators=cfg.xgb.n_estimators,
         ),
         n_trials=cfg.xgb.n_trials,
         show_progress_bar=False,
     )
 
     # --- Step 6: retrain on full training set --------------------------------
-    # Derive n_estimators from the early-stopped iteration count of the best
-    # Optuna trial rather than using a fixed config value.  The iteration count
-    # is scaled up by _FINAL_N_EST_SCALE to account for the ~25% larger
-    # training set (full set vs the 80% fold used during search), then capped
-    # at _FINAL_N_EST_CAP.  If early stopping never fired (edge case), fall
-    # back to cfg.xgb.n_estimators.
-    raw_best_iter = study.best_trial.user_attrs.get("best_iteration", cfg.xgb.n_estimators)
-    # Floor at 10 to guard against early stopping firing on the first tree
-    # (can happen when a trial's hyperparameters are degenerate).
-    final_n_estimators = max(10, min(int(raw_best_iter * _FINAL_N_EST_SCALE), _FINAL_N_EST_CAP))
-
     best_params = dict(study.best_params)
     best_params.update(
         {
             "objective": cfg.xgb.objective,
             **cfg.xgb.objective_params,
-            "n_estimators": final_n_estimators,
+            "n_estimators": cfg.xgb.n_estimators,
             "random_state": cfg.seed,
             "verbosity": 0,
         }
@@ -377,8 +320,8 @@ def tune_and_evaluate_xgb(
     y_train_pred_model = final_model.predict(X_train_proc)
     y_test_pred_model = final_model.predict(X_test_proc)
 
-    y_train_pred = _invert_target_transform(y_train_pred_model, cfg.xgb.target_transform, shift)
-    y_test_pred = _invert_target_transform(y_test_pred_model, cfg.xgb.target_transform, shift)
+    y_train_pred = _invert_target_transform(y_train_pred_model, transform_mode, shift)
+    y_test_pred = _invert_target_transform(y_test_pred_model, transform_mode, shift)
 
     train_r2, train_mse, train_rmse = r2_mse_rmse(y_train, y_train_pred)
     test_r2, test_mse, test_rmse = r2_mse_rmse(y_test, y_test_pred)
@@ -394,11 +337,8 @@ def tune_and_evaluate_xgb(
         "test_rmse": test_rmse,
         "n_trials": cfg.xgb.n_trials,
         "best_params": best_params,
-        # n_estimators actually used for the final fit (early-stopping derived).
-        # Stored separately so it can be inspected alongside the Optuna params.
-        "final_n_estimators": final_n_estimators,
         "log_numeric_features": log_numeric_features,
-        "target_transform": cfg.xgb.target_transform,
+        "target_transform": transform_mode,
     }
 
     predictions_df = pd.DataFrame(

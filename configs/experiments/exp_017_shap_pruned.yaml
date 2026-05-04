@@ -1,0 +1,50 @@
+defaults: base
+
+id: exp_017_shap_pruned
+description: >
+  SHAP-guided feature pruning: 10 near-zero features removed, 12 retained.
+  Reduced scope (Power Law, Sisko, Williamson) with per-target log1p transforms.
+hypothesis: >
+  SHAP analysis (exp_016 fixed-param models) identified 10 features with mean
+  |SHAP| below 5% of the maximum.  These fall into three redundancy classes:
+  (1) raw component percentages whose signal is fully captured by their product
+  with Solid_Content_pct (PVDF_pct absorbed into solid_x_pvdf; NMC_pct into
+  solid_x_nmc; conductive_total into solid_x_conductive);
+  (2) ratio features (NMC_to_binder, conductive_to_binder) that add no signal
+  beyond the numerator and denominator features already present;
+  (3) aliases and log-transformed duplicates (binder_share == PVDF_pct;
+  log1p_C65_pct / log1p_KS6L_pct redundant with raw C65_pct / KS6L_pct).
+  Removing these 10 features reduces dimensionality from 22 to 12 columns,
+  which should tighten the Optuna search by removing noise dimensions and
+  reduce within-leaf variance in XGBoost splits.
+
+physics:
+  models:
+    - power_law
+    - sisko
+    - williamson
+
+features:
+  exclude_cols:
+    # Raw percentages fully absorbed by Solid_Content interaction products
+    - PVDF_pct
+    - NMC_pct
+    # Ratio features: no incremental signal beyond their components
+    - NMC_to_binder
+    - conductive_to_binder
+    # Aggregate totals: signal captured in interaction terms
+    - conductive_total
+    - nonbinder_total
+    # Alias: binder_share is identical to PVDF_pct
+    - binder_share
+    # Log-transformed duplicates: raw columns already present and score higher
+    - log1p_C65_pct
+    - log1p_KS6L_pct
+    - log1p_Solid_Additive_pct
+
+xgb:
+  n_trials: 10
+  target_transform: none
+
+run:
+  sections: [baseline]

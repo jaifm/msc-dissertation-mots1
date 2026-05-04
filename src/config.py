@@ -79,6 +79,8 @@ class DataCfg:
 class FeaturesCfg:
     use_engineered: bool
     log_numeric: bool
+    exclude_cols: List[str] = field(default_factory=list)
+    poly_degree: int = 0
 
 
 @dataclass
@@ -103,6 +105,7 @@ class XgbCfg:
     objective: str
     objective_params: Dict[str, Any]
     fixed_params: Dict[str, Any]
+    per_target_transforms: Dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -123,6 +126,44 @@ class RunCfg:
 
 
 @dataclass
+class GprCfg:
+    """Gaussian Process Regression configuration.
+
+    Only consumed when 'gpr_baseline' appears in run.sections.
+
+    Attributes
+    ----------
+    kernel:
+        Covariance kernel: 'matern25' (default) or 'rbf'.
+    n_restarts:
+        Restarts for the log marginal likelihood optimiser.
+    target_transform:
+        Global target transform (same options as XgbCfg).
+    normalize_y:
+        Centre and scale the target inside GPR before kernel computations.
+        Recommended True for targets that span different orders of magnitude.
+    ard:
+        When True, use Automatic Relevance Determination: the kernel gets one
+        independent length scale per input feature rather than a single shared
+        value.  ARD lets the marginal likelihood optimiser shrink length scales
+        for uninformative features toward their upper bound, effectively
+        down-weighting them.  Increases optimisation cost proportionally to
+        the number of features but is the principled way to do feature
+        selection inside a GPR.
+    per_target_transforms:
+        Target-name → transform override, same semantics as
+        ``XgbCfg.per_target_transforms``.  Takes priority over
+        ``target_transform`` for the named targets.
+    """
+    kernel: str
+    n_restarts: int
+    target_transform: str
+    normalize_y: bool
+    ard: bool = False
+    per_target_transforms: Dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
 class Config:
     id: str
     description: str
@@ -135,6 +176,7 @@ class Config:
     xgb: XgbCfg
     loo: LooCfg
     run: RunCfg
+    gpr: GprCfg
     created_at_utc: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )
@@ -187,8 +229,9 @@ class Config:
 # ---------------------------------------------------------------------------
 
 
-_VALID_SECTIONS = {"baseline", "sweep", "loo"}
-_VALID_TARGET_TRANSFORMS = {"none", "log1p_nonnegative"}
+_VALID_SECTIONS = {"baseline", "sweep", "loo", "gpr_baseline", "gpr_xgb_ensemble"}
+_VALID_GPR_KERNELS = {"rbf", "matern25", "matern15", "matern25_linear"}
+_VALID_TARGET_TRANSFORMS = {"none", "log1p_nonnegative", "logit"}
 _VALID_OBJECTIVES = {"reg:squarederror", "reg:pseudohubererror", "reg:absoluteerror"}
 
 
@@ -221,6 +264,12 @@ def _build(raw: Dict[str, Any]) -> Config:
         variants=[LooVariant(**v) for v in loo_raw["variants"]],
         target_scope=loo_raw["target_scope"],
     )
+    gpr_raw = raw.get("gpr") or {
+        "kernel": "matern25",
+        "n_restarts": 5,
+        "target_transform": "none",
+        "normalize_y": True,
+    }
     return Config(
         id=raw["id"],
         description=raw.get("description", ""),
@@ -233,6 +282,7 @@ def _build(raw: Dict[str, Any]) -> Config:
         xgb=XgbCfg(**raw["xgb"]),
         loo=loo,
         run=RunCfg(**raw["run"]),
+        gpr=GprCfg(**gpr_raw),
     )
 
 
@@ -253,6 +303,12 @@ def _validate(cfg: Config) -> None:
             f"Unknown xgb.objective={cfg.xgb.objective!r}. "
             f"Valid: {sorted(_VALID_OBJECTIVES)}"
         )
+    for tgt, mode in cfg.xgb.per_target_transforms.items():
+        if mode not in _VALID_TARGET_TRANSFORMS:
+            raise ValueError(
+                f"Unknown per_target_transforms[{tgt!r}]={mode!r}. "
+                f"Valid: {sorted(_VALID_TARGET_TRANSFORMS)}"
+            )
     for model_key in cfg.physics.models:
         if model_key not in cfg.physics.targets:
             raise ValueError(f"physics.targets missing entry for model {model_key!r}")
@@ -260,6 +316,23 @@ def _validate(cfg: Config) -> None:
         raise ValueError(
             f"loo.target_scope must be 'first' or 'all' (got {cfg.loo.target_scope!r})"
         )
+    if "gpr_baseline" in cfg.run.sections:
+        if cfg.gpr.kernel not in _VALID_GPR_KERNELS:
+            raise ValueError(
+                f"gpr.kernel must be one of {sorted(_VALID_GPR_KERNELS)} "
+                f"(got {cfg.gpr.kernel!r})"
+            )
+        if cfg.gpr.target_transform not in _VALID_TARGET_TRANSFORMS:
+            raise ValueError(
+                f"gpr.target_transform must be one of {sorted(_VALID_TARGET_TRANSFORMS)} "
+                f"(got {cfg.gpr.target_transform!r})"
+            )
+        for tgt, mode in cfg.gpr.per_target_transforms.items():
+            if mode not in _VALID_TARGET_TRANSFORMS:
+                raise ValueError(
+                    f"Unknown gpr.per_target_transforms[{tgt!r}]={mode!r}. "
+                    f"Valid: {sorted(_VALID_TARGET_TRANSFORMS)}"
+                )
 
 
 def load_config(name: str, configs_dir: Optional[Path] = None) -> Config:

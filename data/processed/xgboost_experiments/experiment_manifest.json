@@ -1,6 +1,424 @@
 {
   "runs": [
     {
+      "run_id": "exp_023_gpr_xgb_ensemble_20260501_170420",
+      "experiment_id": "exp_023_gpr_xgb_ensemble",
+      "description": "Equal-weight ensemble of the best GPR (exp_021: Matern25+Linear, ARD, 20 restarts) and XGBoost (exp_017 feature set) on reduced scope.\n",
+      "hypothesis": "GPR and XGBoost make structurally different errors: GPR interpolates smoothly through kernel-distance space and captures the continuous composition-viscosity trend; XGBoost builds step-function boundaries driven by information gain and is better at fitting discrete-grid formulation effects (e.g. the sharp change at ~2 wt% C65 loading). On a 120-row dataset where neither model is large-data-asymptotically optimal, their residuals are partially uncorrelated \u2014 simple equal- weight averaging should reduce total predictive variance without introducing additional hyperparameters. GPR settings mirror exp_021 (matern25_linear, ARD, 20 restarts, per- target log1p, OHE standardisation, duplicate features removed). XGBoost uses the same feature set and per-target transforms.\n",
+      "created_at_utc": "2026-05-01T17:04:20.714091+00:00",
+      "duration_seconds": 55.8,
+      "sections_run": [
+        "gpr_xgb_ensemble"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.5311107207631576,
+        "test_rmse": 17.743549084294212
+      },
+      "saved_files": [
+        "gpr_xgb_ensemble_model_summary.csv",
+        "gpr_xgb_ensemble_per_target.csv",
+        "gpr_xgb_ensemble_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_022_gpr_matern15_20260501_162749",
+      "experiment_id": "exp_022_gpr_matern15",
+      "description": "GPR kernel comparison: same fixes as exp_021 but Matern(nu=1.5) instead of the composite Matern25+DotProduct kernel.\n",
+      "hypothesis": "exp_021 uses a composite Matern(nu=2.5)+DotProduct kernel, assuming a smooth nonlinear + linear composition-viscosity relationship.  This experiment tests whether a rougher single kernel \u2014 Matern(nu=1.5), which is only once mean-square differentiable \u2014 fits the data better.  The physical motivation is that battery slurry rheology can have sharp transitions: C65 carbon black forms a percolating stress network at a critical loading (~2 wt%), which introduces a near-discontinuous change in eta_0 and lambda_time that a twice-differentiable kernel may smooth over.  nu=1.5 allows the kernel to track such sharp changes more faithfully without requiring the linear DotProduct component. All other settings (ARD, 20 restarts, OHE standardisation, duplicate removal, per-target transforms) are identical to exp_021 so the only variable is the kernel family.\n",
+      "created_at_utc": "2026-05-01T16:27:49.983278+00:00",
+      "duration_seconds": 20.2,
+      "sections_run": [
+        "gpr_baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.5577261533972684,
+        "test_rmse": 17.619137096275427
+      },
+      "saved_files": [
+        "gpr_baseline_model_summary.csv",
+        "gpr_baseline_per_target.csv",
+        "gpr_baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_021_gpr_matern25_linear_20260501_162640",
+      "experiment_id": "exp_021_gpr_matern25_linear",
+      "description": "GPR with all five optimisations: duplicate feature removed, OHE outputs fully standardised, composite Matern25+DotProduct kernel, ARD, 20 restarts.\n",
+      "hypothesis": "Five targeted fixes over exp_020: (1) solid_x_conductive dropped \u2014 it is algebraically identical to solid_x_pvdf in this dataset (PVDF_pct == C65_pct + KS6L_pct for every formulation), so keeping both causes exact multicollinearity in the ARD Gram matrix. (2) solid_x_nmc dropped \u2014 NMC_pct takes only two values (96, 97%) in the dataset, making solid_x_nmc \u2248 96 \u00d7 Solid_Content_pct with near-zero unique information; imputed NaN rows further dilute signal. (3) Global StandardScaler now applied after the ColumnTransformer so OHE binary columns (Dispersent_Type) reach std=1.0 rather than std\u22480.35, giving dispersant type equal weight to continuous features in the kernel distance. (4) Composite kernel Matern25+DotProduct: the DotProduct component captures the quasi-linear Krieger-Dougherty viscosity-composition trend at low-to- moderate packing, leaving the Matern to model residual nonlinear structure. (5) 20 restarts (vs 10) for more thorough exploration of the ARD parameter space (\u224812 free kernel parameters after duplicate removal).\n",
+      "created_at_utc": "2026-05-01T16:26:40.092626+00:00",
+      "duration_seconds": 26.7,
+      "sections_run": [
+        "gpr_baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.5588693688416775,
+        "test_rmse": 17.065222083421478
+      },
+      "saved_files": [
+        "gpr_baseline_model_summary.csv",
+        "gpr_baseline_per_target.csv",
+        "gpr_baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_020_gpr_optimised_20260501_154521",
+      "experiment_id": "exp_020_gpr_optimised",
+      "description": "Optimised GPR: ARD kernel, per-target log1p transforms, SHAP-pruned features, reduced scope (Power Law, Sisko, Williamson), 10 restarts.\n",
+      "hypothesis": "exp_019 used a single shared length scale across all features (isotropic kernel).  This means an uninformative feature (e.g. a redundant ratio) contributes as much to the distance metric as Solid_Content_pct, which dominates SHAP importance.  ARD (Automatic Relevance Determination) assigns one length scale per feature; the marginal likelihood optimiser pushes irrelevant features toward their upper bound (large length scale = flat response = ignored), effectively performing soft feature selection within the kernel.  Combined with the SHAP-pruned feature set (10 low-importance features removed), per-target log1p transforms for positive parameters, and reduced model scope (CY5 and Constrained CY dropped), this experiment tests whether a well-configured GPR can materially outperform the isotropic baseline. Restarts increased to 10 to give the L-BFGS-B optimiser more chances to find the global maximum of the log marginal likelihood in a higher-dimensional ARD parameter space.\n",
+      "created_at_utc": "2026-05-01T15:45:21.470207+00:00",
+      "duration_seconds": 13.6,
+      "sections_run": [
+        "gpr_baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.5534319789513522,
+        "test_rmse": 17.369536533533925
+      },
+      "saved_files": [
+        "gpr_baseline_model_summary.csv",
+        "gpr_baseline_per_target.csv",
+        "gpr_baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_019_gpr_log_targets_20260501_153525",
+      "experiment_id": "exp_019_gpr_log_targets",
+      "description": "Gaussian Process Regression baseline across all five physics models. Uses Matern(nu=2.5) kernel with WhiteKernel noise.  Features are standardised (impute then StandardScale) before GPR, unlike the XGBoost path which uses tree-scale-invariant preprocessing.\n",
+      "hypothesis": "GPR may outperform XGBoost on this ~120-row dataset for two reasons. First, GPR is a Bayesian model that regularises via the marginal likelihood rather than a discrete hyperparameter search \u2014 with only 10 Optuna trials, XGBoost's search is under-converged, whereas GPR's kernel hyperparameters are optimised analytically.  Second, GPR interpolates smoothly between training points, which suits the continuous composition-to-parameter relationship.  The posterior standard deviation also flags formulations that are extrapolating beyond the training support, which is useful for experimental design.\nlog-transorming the targets should help GPR more than XGBoost, because  GPR's Gaussian likelihood is more sensitive to outliers than XGBoost's  robust tree splits.  The long tails in the target distributions (e.g. eta_0)  are likely to be outliers from GPR's perspective, so applying log1p_nonnegative  should reduce their leverage and improve overall fit.\n",
+      "created_at_utc": "2026-05-01T15:35:25.002784+00:00",
+      "duration_seconds": 4.1,
+      "sections_run": [
+        "gpr_baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.5487184485071537,
+        "test_rmse": 16.295957941412894
+      },
+      "saved_files": [
+        "gpr_baseline_model_summary.csv",
+        "gpr_baseline_per_target.csv",
+        "gpr_baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_018_poly_features_20260501_152640",
+      "experiment_id": "exp_018_poly_features",
+      "description": "SHAP-pruned features (12 retained) with degree-2 polynomial expansion of numeric columns. Power Law, Sisko, Williamson. Per-target log1p transforms.\n",
+      "hypothesis": "The SHAP analysis (exp_017) confirmed that Solid_Content_pct and its first-order products dominate prediction.  However, the composition-to- rheology relationship is nonlinear: Krieger-Dougherty theory predicts viscosity ~ (1 - phi/phi_max)^-2, and the shear-thinning index responds to the interplay between conductive network strength and overall packing. A degree-2 polynomial expansion of the 8 numeric features makes explicit squared terms (Solid_Content_pct^2, C65_pct^2) and cross-product terms not already present (e.g. C65_pct * solid_to_additive), giving XGBoost access to second-order structure without requiring deep trees to discover it through consecutive splits.  With 8 numeric features the expansion yields 44 numeric columns (8 + 8 squared + 28 pairs) plus ~4 OHE columns \u2014 still well within the regularised XGBoost regime for a 136-row training set.\n",
+      "created_at_utc": "2026-05-01T15:26:40.499637+00:00",
+      "duration_seconds": 9.9,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.37349874711013176,
+        "test_rmse": 22.405992911601786
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_018_poly_features_20260501_152451",
+      "experiment_id": "exp_018_poly_features",
+      "description": "SHAP-pruned features (12 retained) with degree-2 polynomial expansion of numeric columns. Power Law, Sisko, Williamson. Per-target log1p transforms.\n",
+      "hypothesis": "The SHAP analysis (exp_017) confirmed that Solid_Content_pct and its first-order products dominate prediction.  However, the composition-to- rheology relationship is nonlinear: Krieger-Dougherty theory predicts viscosity ~ (1 - phi/phi_max)^-2, and the shear-thinning index responds to the interplay between conductive network strength and overall packing. A degree-2 polynomial expansion of the 8 numeric features makes explicit squared terms (Solid_Content_pct^2, C65_pct^2) and cross-product terms not already present (e.g. C65_pct * solid_to_additive), giving XGBoost access to second-order structure without requiring deep trees to discover it through consecutive splits.  With 8 numeric features the expansion yields 44 numeric columns (8 + 8 squared + 28 pairs) plus ~4 OHE columns \u2014 still well within the regularised XGBoost regime for a 136-row training set.\n",
+      "created_at_utc": "2026-05-01T15:24:51.071119+00:00",
+      "duration_seconds": 10.4,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Williamson",
+        "test_r2": 0.27844269130352883,
+        "test_rmse": 74.16283465922626
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": "attempted without transformed targets, but the extreme outliers in lambda_time and a caused the polynomial features to explode in magnitude and destabilise training. With per-target log1p transforms the expansion is well-behaved and gives a modest lift to consistency and viscosity targets, but the flow-index targets (n_flow, n_sisko, n_w) are still under-fit and the overall R\u00b2 is slightly below exp_017 without the expansion."
+    },
+    {
+      "run_id": "exp_018_poly_features_20260501_152359",
+      "experiment_id": "exp_018_poly_features",
+      "description": "SHAP-pruned features (12 retained) with degree-2 polynomial expansion of numeric columns. Power Law, Sisko, Williamson. Per-target log1p transforms.\n",
+      "hypothesis": "The SHAP analysis (exp_017) confirmed that Solid_Content_pct and its first-order products dominate prediction.  However, the composition-to- rheology relationship is nonlinear: Krieger-Dougherty theory predicts viscosity ~ (1 - phi/phi_max)^-2, and the shear-thinning index responds to the interplay between conductive network strength and overall packing. A degree-2 polynomial expansion of the 8 numeric features makes explicit squared terms (Solid_Content_pct^2, C65_pct^2) and cross-product terms not already present (e.g. C65_pct * solid_to_additive), giving XGBoost access to second-order structure without requiring deep trees to discover it through consecutive splits.  With 8 numeric features the expansion yields 44 numeric columns (8 + 8 squared + 28 pairs) plus ~4 OHE columns \u2014 still well within the regularised XGBoost regime for a 136-row training set.\n",
+      "created_at_utc": "2026-05-01T15:23:59.103840+00:00",
+      "duration_seconds": 9.9,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.37349874711013176,
+        "test_rmse": 22.405992911601786
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_017_shap_pruned_20260501_151827",
+      "experiment_id": "exp_017_shap_pruned",
+      "description": "SHAP-guided feature pruning: 10 near-zero features removed, 12 retained. Reduced scope (Power Law, Sisko, Williamson) with per-target log1p transforms.\n",
+      "hypothesis": "SHAP analysis (exp_016 fixed-param models) identified 10 features with mean |SHAP| below 5% of the maximum.  These fall into three redundancy classes: (1) raw component percentages whose signal is fully captured by their product with Solid_Content_pct (PVDF_pct absorbed into solid_x_pvdf; NMC_pct into solid_x_nmc; conductive_total into solid_x_conductive); (2) ratio features (NMC_to_binder, conductive_to_binder) that add no signal beyond the numerator and denominator features already present; (3) aliases and log-transformed duplicates (binder_share == PVDF_pct; log1p_C65_pct / log1p_KS6L_pct redundant with raw C65_pct / KS6L_pct). Removing these 10 features reduces dimensionality from 22 to 12 columns, which should tighten the Optuna search by removing noise dimensions and reduce within-leaf variance in XGBoost splits.\n",
+      "created_at_utc": "2026-05-01T15:18:27.579523+00:00",
+      "duration_seconds": 10.4,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.41932966912429676,
+        "test_rmse": 19.852391282179447
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": "without transformed targets"
+    },
+    {
+      "run_id": "exp_017_shap_pruned_20260501_151710",
+      "experiment_id": "exp_017_shap_pruned",
+      "description": "SHAP-guided feature pruning: 10 near-zero features removed, 12 retained. Reduced scope (Power Law, Sisko, Williamson) with per-target log1p transforms.\n",
+      "hypothesis": "SHAP analysis (exp_016 fixed-param models) identified 10 features with mean |SHAP| below 5% of the maximum.  These fall into three redundancy classes: (1) raw component percentages whose signal is fully captured by their product with Solid_Content_pct (PVDF_pct absorbed into solid_x_pvdf; NMC_pct into solid_x_nmc; conductive_total into solid_x_conductive); (2) ratio features (NMC_to_binder, conductive_to_binder) that add no signal beyond the numerator and denominator features already present; (3) aliases and log-transformed duplicates (binder_share == PVDF_pct; log1p_C65_pct / log1p_KS6L_pct redundant with raw C65_pct / KS6L_pct). Removing these 10 features reduces dimensionality from 22 to 12 columns, which should tighten the Optuna search by removing noise dimensions and reduce within-leaf variance in XGBoost splits.\n",
+      "created_at_utc": "2026-05-01T15:17:10.537287+00:00",
+      "duration_seconds": 9.8,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.4041247241483839,
+        "test_rmse": 21.068963396321987
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": "with transformed targets"
+    },
+    {
+      "run_id": "exp_017_shap_pruned_20260501_151627",
+      "experiment_id": "exp_017_shap_pruned",
+      "description": "SHAP-guided feature pruning: 10 near-zero features removed, 12 retained. Reduced scope (Power Law, Sisko, Williamson) with per-target log1p transforms.\n",
+      "hypothesis": "SHAP analysis (exp_016 fixed-param models) identified 10 features with mean |SHAP| below 5% of the maximum.  These fall into three redundancy classes: (1) raw component percentages whose signal is fully captured by their product with Solid_Content_pct (PVDF_pct absorbed into solid_x_pvdf; NMC_pct into solid_x_nmc; conductive_total into solid_x_conductive); (2) ratio features (NMC_to_binder, conductive_to_binder) that add no signal beyond the numerator and denominator features already present; (3) aliases and log-transformed duplicates (binder_share == PVDF_pct; log1p_C65_pct / log1p_KS6L_pct redundant with raw C65_pct / KS6L_pct). Removing these 10 features reduces dimensionality from 22 to 12 columns, which should tighten the Optuna search by removing noise dimensions and reduce within-leaf variance in XGBoost splits.\n",
+      "created_at_utc": "2026-05-01T15:16:27.301818+00:00",
+      "duration_seconds": 10.1,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.4041247241483839,
+        "test_rmse": 21.068963396321987
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_016_reduced_scope_20260501_145625",
+      "experiment_id": "exp_016_reduced_scope",
+      "description": "Reduced model scope: Power Law, Sisko, Williamson only. CY5 and Constrained CY removed. Per-target log1p transforms applied to positive targets.\n",
+      "hypothesis": "CY5 (5 targets) and Constrained CY (3 targets) are dominated by lambda_time and shape parameter a, both of which have negative test R\u00b2 across all prior experiments.  Including them depresses the reported best-model R\u00b2 and makes it harder to see whether composition genuinely predicts the tractable parameters.  Restricting to Power Law, Sisko, and Williamson (9 targets total) removes the noise sources and focuses optimisation effort on the three models where at least one target (k_consistency, k_sisko, eta_inf) achieves R\u00b2 > 0.7. Combined with per-target log1p transforms for positive parameters, the expected result is a cleaner ranking and a higher reported best-model R\u00b2.\n",
+      "created_at_utc": "2026-05-01T14:56:25.100187+00:00",
+      "duration_seconds": 9.7,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.5018285720190963,
+        "test_rmse": 15.85670684670851
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_015_per_target_transforms_20260501_144923",
+      "experiment_id": "exp_015_per_target_transforms",
+      "description": "Per-target transform selection: log1p for positive viscosity parameters, logit for bounded flow indices, none for parameters with indeterminate sign.\n",
+      "hypothesis": "A single global transform (exp_005 used log1p for all targets) is a compromise that fits some targets well and others poorly.  The key distinction is between targets that are strictly positive (k_*, eta_0, eta_inf) and those with indeterminate sign (lambda_time, a).  Applying log1p_nonnegative only to the positive targets and no transform to the sign-ambiguous ones should reduce target-space mismatch: log1p compresses right-skewed distributions that otherwise cause large squared-error gradients on extreme values, while leaving sign-ambiguous targets in their natural scale avoids shift-correction artifacts. Note: logit was tested for the flow-index parameters (n_flow, n_sisko, n_w, n) but rejected because n_w reaches exactly 1.0 in some physics fits (logit \u2192 +inf before clipping) and test-set n_flow/n_sisko extend slightly beyond training bounds; logit amplifies these boundary effects while log1p handles them safely.\n",
+      "created_at_utc": "2026-05-01T14:49:23.059361+00:00",
+      "duration_seconds": 18.5,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.5018285720190963,
+        "test_rmse": 15.85670684670851
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_015_per_target_transforms_20260501_144441",
+      "experiment_id": "exp_015_per_target_transforms",
+      "description": "Per-target transform selection: log1p for positive viscosity parameters, logit for bounded flow indices, none for parameters with indeterminate sign.\n",
+      "hypothesis": "A single global transform (exp_005 used log1p for all targets) is a compromise that fits some targets well and others poorly.  Flow-index parameters (n_flow, n_sisko, n_w, n) are physically bounded in (0, 1); log1p does not respect this boundary and maps them to a semi-infinite domain.  Logit is the natural bijection from (0,1) to the full real line, so the model minimises MSE in a space where the gradient signal is uniform across the distribution.  Viscosity scale parameters (eta_0, eta_inf, k_*) are positive and right-skewed, so log1p remains appropriate for them.  Parameters like lambda_time and a can be negative in degenerate fits, so no transform is applied.  Together these per-target choices should lift n_flow R\u00b2 (0.285 in exp_005) and n_sisko / n_w without hurting the already-strong consistency and viscosity targets.\n",
+      "created_at_utc": "2026-05-01T14:44:41.377145+00:00",
+      "duration_seconds": 19.3,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.4563682866789053,
+        "test_rmse": 15.861596615259511
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_005_log_target_20260501_144245",
+      "experiment_id": "exp_005_log_target",
+      "description": "Engineered features with log1p target transform, 10 Optuna trials. Isolates the effect of applying a log transform to the rheology parameter targets (eta_0, lambda, K etc.), which are right-skewed distributions with long tails.\n",
+      "hypothesis": "Rheology parameters are right-skewed: a small number of formulations produce very high zero-shear viscosities.  Without a target transform, XGBoost's squared-error objective over-weights these outliers and under-fits the majority of formulations.  Applying log1p_nonnegative should reduce this bias and lift test R\u00b2 across most physics models, particularly those with multi-scale targets such as CY5 (eta_0 spans several orders of magnitude).\n",
+      "created_at_utc": "2026-05-01T14:42:45.041165+00:00",
+      "duration_seconds": 18.3,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.5018285720190963,
+        "test_rmse": 15.85670684670851
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_015_per_target_transforms_20260501_144141",
+      "experiment_id": "exp_015_per_target_transforms",
+      "description": "Per-target transform selection: log1p for positive viscosity parameters, logit for bounded flow indices, none for parameters with indeterminate sign.\n",
+      "hypothesis": "A single global transform (exp_005 used log1p for all targets) is a compromise that fits some targets well and others poorly.  Flow-index parameters (n_flow, n_sisko, n_w, n) are physically bounded in (0, 1); log1p does not respect this boundary and maps them to a semi-infinite domain.  Logit is the natural bijection from (0,1) to the full real line, so the model minimises MSE in a space where the gradient signal is uniform across the distribution.  Viscosity scale parameters (eta_0, eta_inf, k_*) are positive and right-skewed, so log1p remains appropriate for them.  Parameters like lambda_time and a can be negative in degenerate fits, so no transform is applied.  Together these per-target choices should lift n_flow R\u00b2 (0.285 in exp_005) and n_sisko / n_w without hurting the already-strong consistency and viscosity targets.\n",
+      "created_at_utc": "2026-05-01T14:41:41.634701+00:00",
+      "duration_seconds": 19.5,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.4563682866789053,
+        "test_rmse": 15.861596615259511
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_005_log_target_20260501_142410",
+      "experiment_id": "exp_005_log_target",
+      "description": "Engineered features with log1p target transform, 10 Optuna trials. Isolates the effect of applying a log transform to the rheology parameter targets (eta_0, lambda, K etc.), which are right-skewed distributions with long tails.\n",
+      "hypothesis": "Rheology parameters are right-skewed: a small number of formulations produce very high zero-shear viscosities.  Without a target transform, XGBoost's squared-error objective over-weights these outliers and under-fits the majority of formulations.  Applying log1p_nonnegative should reduce this bias and lift test R\u00b2 across most physics models, particularly those with multi-scale targets such as CY5 (eta_0 spans several orders of magnitude).\n",
+      "created_at_utc": "2026-05-01T14:24:10.823079+00:00",
+      "duration_seconds": 17.2,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.46947344228201265,
+        "test_rmse": 19.054749562191102
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": "attempted run without engineered features, to see if it would help with the log target. It did not."
+    },
+    {
+      "run_id": "exp_005_log_target_20260501_140936",
+      "experiment_id": "exp_005_log_target",
+      "description": "Engineered features with log1p target transform, 10 Optuna trials. Isolates the effect of applying a log transform to the rheology parameter targets (eta_0, lambda, K etc.), which are right-skewed distributions with long tails.\n",
+      "hypothesis": "Rheology parameters are right-skewed: a small number of formulations produce very high zero-shear viscosities.  Without a target transform, XGBoost's squared-error objective over-weights these outliers and under-fits the majority of formulations.  Applying log1p_nonnegative should reduce this bias and lift test R\u00b2 across most physics models, particularly those with multi-scale targets such as CY5 (eta_0 spans several orders of magnitude).\n",
+      "created_at_utc": "2026-05-01T14:09:36.246709+00:00",
+      "duration_seconds": 17.9,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.5018285720190963,
+        "test_rmse": 15.85670684670851
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_007_log_target_high_trials_20260501_140704",
+      "experiment_id": "exp_007_log_target_high_trials",
+      "description": "Engineered features, log1p target transform, and 50 Optuna trials. Combines the two improvements tested in isolation by exp_005 and exp_006 to establish the best single-model configuration explored in this project.\n",
+      "hypothesis": "Target transformation (exp_005) and a larger trial budget (exp_006) address different bottlenecks: the transform reduces bias from skewed targets while more trials reduce variance in the hyperparameter search.  When both are applied together the gains should be at least additive, and possibly super-additive if the better-calibrated search space finds optimal regularisation settings that specifically benefit the transformed target distribution.  This experiment provides the strongest baseline for comparing against LOO generalisability scores.\n",
+      "created_at_utc": "2026-05-01T14:07:04.214939+00:00",
+      "duration_seconds": 96.4,
+      "sections_run": [
+        "baseline"
+      ],
+      "best": {
+        "model_name": "Power Law",
+        "test_r2": 0.4412809953737074,
+        "test_rmse": 19.271618836267645
+      },
+      "saved_files": [
+        "baseline_model_summary.csv",
+        "baseline_per_target.csv",
+        "baseline_predictions.csv"
+      ],
+      "notes": ""
+    },
+    {
       "run_id": "exp_009_pseudo_huber_20260421_165847",
       "experiment_id": "exp_009_pseudo_huber",
       "description": "Engineered features with pseudo Huber loss objective (reg:pseudohubererror), 20 Optuna trials.\n",

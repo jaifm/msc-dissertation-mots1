@@ -37,6 +37,8 @@ data:
 features:
   use_engineered: true
   log_numeric: false
+  exclude_cols: []   # feature names to drop after engineering (SHAP-guided pruning)
+  poly_degree: 0     # 0=disabled, 2=degree-2 polynomial expansion of numeric features
 
 physics:
   viscosity_shears: [1.0, 10.0, 100.0]
@@ -69,6 +71,7 @@ xgb:
   #                           to set huber_slope (delta); default 1.0
   objective: reg:squarederror
   objective_params: {}        # extra kwargs forwarded to XGBRegressor
+  per_target_transforms: {}   # target-name → transform; overrides target_transform for that target
   # Fixed params used by LOO (baseline sweep uses Optuna search; this is only
   # relevant when a section runs with a fixed XGB config).
   fixed_params:
@@ -88,9 +91,20 @@ loo:
     - {id: exp_loo_batch, leave_out_unit: batch}
   target_scope: first          # 'first' = first target per model; 'all' = every target
 
+# Gaussian Process Regression baseline (parallel to XGBoost path).
+# Only consumed when 'gpr_baseline' is listed in run.sections.
+gpr:
+  kernel: matern25          # 'matern25' (default) or 'rbf'
+  n_restarts: 5             # log-marginal-likelihood optimiser restarts
+  target_transform: none    # options: none, log1p_nonnegative
+  normalize_y: true         # centre+scale target inside GPR (recommended)
+  ard: false                # true = one length scale per feature (ARD)
+  per_target_transforms: {} # target-name → transform; overrides target_transform
+
 # Sections to run for this experiment. Options:
-#   baseline  — full 5-model × all-targets sweep with Optuna tuning
-#   sweep     — baseline + log1p_numeric variant comparison
-#   loo       — leave-one-out generalisability (slow)
+#   baseline     — full 5-model × all-targets sweep with Optuna tuning
+#   sweep        — baseline + log1p_numeric variant comparison
+#   loo          — leave-one-out generalisability (slow)
+#   gpr_baseline — same sweep using Gaussian Process Regression
 run:
   sections: [baseline]

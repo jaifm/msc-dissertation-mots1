@@ -1,0 +1,65 @@
+defaults: base
+
+id: exp_021_gpr_matern25_linear
+description: >
+  GPR with all five optimisations: duplicate feature removed, OHE outputs
+  fully standardised, composite Matern25+DotProduct kernel, ARD, 20 restarts.
+hypothesis: >
+  Five targeted fixes over exp_020:
+  (1) solid_x_conductive dropped — it is algebraically identical to solid_x_pvdf
+  in this dataset (PVDF_pct == C65_pct + KS6L_pct for every formulation), so
+  keeping both causes exact multicollinearity in the ARD Gram matrix.
+  (2) solid_x_nmc dropped — NMC_pct takes only two values (96, 97%) in the
+  dataset, making solid_x_nmc ≈ 96 × Solid_Content_pct with near-zero unique
+  information; imputed NaN rows further dilute signal.
+  (3) Global StandardScaler now applied after the ColumnTransformer so OHE
+  binary columns (Dispersent_Type) reach std=1.0 rather than std≈0.35, giving
+  dispersant type equal weight to continuous features in the kernel distance.
+  (4) Composite kernel Matern25+DotProduct: the DotProduct component captures
+  the quasi-linear Krieger-Dougherty viscosity-composition trend at low-to-
+  moderate packing, leaving the Matern to model residual nonlinear structure.
+  (5) 20 restarts (vs 10) for more thorough exploration of the ARD parameter
+  space (≈12 free kernel parameters after duplicate removal).
+
+physics:
+  models:
+    - power_law
+    - sisko
+    - williamson
+
+features:
+  exclude_cols:
+    - PVDF_pct
+    - NMC_pct
+    - NMC_to_binder
+    - conductive_to_binder
+    - conductive_total
+    - nonbinder_total
+    - binder_share
+    - log1p_C65_pct
+    - log1p_KS6L_pct
+    - log1p_Solid_Additive_pct
+    # GPR-specific: algebraically identical to solid_x_pvdf in this dataset
+    - solid_x_conductive
+    # GPR-specific: NMC_pct ∈ {96,97} → near-constant multiple of Solid_Content_pct
+    - solid_x_nmc
+
+gpr:
+  kernel: matern25_linear
+  n_restarts: 20
+  normalize_y: true
+  ard: true
+  target_transform: none
+  per_target_transforms:
+    k_consistency:    log1p_nonnegative
+    k_sisko:          log1p_nonnegative
+    eta_0:            log1p_nonnegative
+    eta_inf:          log1p_nonnegative
+    eta_inf_sisko:    log1p_nonnegative
+    n_flow:           log1p_nonnegative
+    n_sisko:          log1p_nonnegative
+    n_w:              log1p_nonnegative
+    lambda_time:      log1p_nonnegative
+
+run:
+  sections: [gpr_baseline]
