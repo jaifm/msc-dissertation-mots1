@@ -1,0 +1,12 @@
+# Held-out-shear study — the dissertation's structural-capability test.
+# Trains on two of the three measured shears and evaluates on the third.
+# All three hold-out positions are run: γ̇=10 tests interpolation between
+# the training shears; γ̇=1 and γ̇=100 test extrapolation below/above them.
+base_experiment: exp_035_pa_chemistry_standardised
+holdout_shears: [1.0, 10.0, 100.0]
+oracle: power_law
+variants:
+  - {name: no_aug, n_aug: 0}
+  - {name: aug_30, n_aug: 30}
+seed: 42
+out_csv: data/processed/xgboost_experiments/shear_holdout_results.csv

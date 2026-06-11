@@ -1,0 +1,13 @@
+# Split-conformal prediction intervals on the physics-augmented XGBoost,
+# chemistry split.  mondrian: shear_rate computes one conformal radius per
+# measured shear (group-conditional conformal) instead of a single marginal
+# radius — see src/studies/conformal.py for the rationale and references.
+base_experiment: exp_035_pa_chemistry_standardised
+oracle: power_law
+n_aug: 30
+seed: 42
+calib_fraction: 0.20
+alphas: [0.10, 0.05]
+mondrian: none
+out_csv: data/processed/xgboost_experiments/conformal_xgb_results.csv
+detail_csv: data/processed/xgboost_experiments/conformal_xgb_detail.csv

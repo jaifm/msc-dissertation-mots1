@@ -1,0 +1,9 @@
+# Few-shot recovery: k ∈ {1,2} batches of the held-out recipe leaked back
+# into training.  k=0 baseline comes from the LOO comparison CSV.
+raw_experiment: exp_033_pa_no_augmentation
+aug_experiment: exp_030_pa_log_target
+n_aug: 30
+few_shot_dir: data/processed/splits_chemistry/few_shot
+loo_csv: data/processed/xgboost_experiments/loo_comparison_results.csv
+out_csv: data/processed/xgboost_experiments/fewshot_comparison_results.csv
+limit: null

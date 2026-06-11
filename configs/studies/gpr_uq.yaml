@@ -1,0 +1,10 @@
+# GPR uncertainty quantification on the parameter-prediction GPR's
+# chemistry-split predictions (latest persisted exp_037 run by default).
+source_experiment: exp_037_gpr_chemistry_split
+run_dir: null
+focus_target: n_flow
+focus_model: power_law
+seed: 42
+calibration_csv: data/processed/xgboost_experiments/gpr_uq_calibration.csv
+correlation_csv: data/processed/xgboost_experiments/gpr_uq_sigma_error_corr.csv
+active_learning_csv: data/processed/xgboost_experiments/gpr_uq_active_learning.csv

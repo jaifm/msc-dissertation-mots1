@@ -1,0 +1,10 @@
+# Cross-batch generalisation (Batch_1 → Batch_2 and Batch_2 → Batch_1).
+# Reads the hash-pinned batch splits; prints the full regime comparison.
+raw_experiment: exp_033_pa_no_augmentation
+aug_experiment: exp_030_pa_log_target
+n_aug: 30
+splits_root: data/processed/splits_chemistry
+split_names: [batch_b1_to_b2, batch_b2_to_b1]
+loo_csv: data/processed/xgboost_experiments/loo_comparison_results.csv
+out_csv: data/processed/xgboost_experiments/batch_comparison_results.csv
+strict_holdout_experiment: exp_035_pa_chemistry_standardised

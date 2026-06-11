@@ -1,0 +1,12 @@
+# GPR-student pass of the 67-fold LOO comparison.  Slower than XGBoost
+# (~10-30 s per fold); prints a head-to-head against the XGBoost CSV.
+# Shares the loo_comparison module (registry alias) with a different
+# learner and output CSV so both passes stay independently pinned.
+learner: gpr
+raw_experiment: exp_033_pa_no_augmentation
+aug_experiment: exp_030_pa_log_target
+n_aug: 30
+loo_dir: data/processed/splits_chemistry/loo
+out_csv: data/processed/xgboost_experiments/gpr_loo_results.csv
+compare_csv: data/processed/xgboost_experiments/loo_comparison_results.csv
+limit: null

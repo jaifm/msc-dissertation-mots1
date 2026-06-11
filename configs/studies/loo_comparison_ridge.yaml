@@ -1,0 +1,12 @@
+# Ridge-student pass of the 67-fold LOO comparison (the exp_044 headline
+# model).  Tests whether the varying-coefficient ridge avoids the
+# catastrophic per-recipe failures the XGBoost student shows on sparse
+# F2/F3 chemistries.  Shares the loo_comparison module (registry alias).
+learner: ridge
+raw_experiment: exp_033_pa_no_augmentation
+aug_experiment: exp_030_pa_log_target
+n_aug: 30
+loo_dir: data/processed/splits_chemistry/loo
+out_csv: data/processed/xgboost_experiments/loo_ridge_results.csv
+compare_csv: data/processed/xgboost_experiments/loo_comparison_results.csv
+limit: null

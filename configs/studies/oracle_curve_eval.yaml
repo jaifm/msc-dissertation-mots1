@@ -1,0 +1,10 @@
+# Oracle-as-pseudo-ground-truth curve-shape evaluation on a dense shear grid.
+# CAVEAT: quantifies curve-shape recovery, not accuracy against measurement.
+base_experiment: exp_030_pa_log_target
+split_dir: data/processed/splits_chemistry/default
+oracle_models: [power_law, cy5]
+n_aug: 30
+n_eval_shears: 200
+shear_range: [0.1, 1000.0]
+out_csv: data/processed/xgboost_experiments/oracle_curve_eval.csv
+bands_csv: data/processed/xgboost_experiments/oracle_curve_bands.csv

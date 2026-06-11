@@ -1,0 +1,15 @@
+# RQ2 head-to-head: El-Dalahmeh-style transfer learning transplanted onto
+# the chemistry split, evaluated on the identical test rows as exp_035.
+split_dir: data/processed/splits_chemistry/default
+pa_experiment: exp_035_pa_chemistry_standardised
+variants: [tl_lightgbm, pooled_lightgbm, ridge]
+target_transforms: [log1p_nonnegative, none]
+lightgbm:
+  n_base_trees: 500
+  n_finetune_trees: 100
+  learning_rate_base: 0.10
+  learning_rate_finetune: 0.05
+source_batch: Batch_1
+target_batch: Batch_2
+seed: 42
+out_csv: data/processed/xgboost_experiments/tl_chemistry_results.csv

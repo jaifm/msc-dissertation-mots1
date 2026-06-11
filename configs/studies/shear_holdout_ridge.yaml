@@ -1,0 +1,13 @@
+# Held-out-shear study with the varying-coefficient ridge student
+# (exp_044).  The ridge model is linear in log_gamma by construction, so
+# its no-augmentation pass isolates whether augmentation adds information
+# or merely repairs the tree student's missing interpolation bias.
+base_experiment: exp_035_pa_chemistry_standardised
+holdout_shears: [1.0, 10.0, 100.0]
+learner: ridge
+oracle: power_law
+variants:
+  - {name: no_aug, n_aug: 0}
+  - {name: aug_30, n_aug: 30}
+seed: 42
+out_csv: data/processed/xgboost_experiments/shear_holdout_ridge_results.csv

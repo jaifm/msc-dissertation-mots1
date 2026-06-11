@@ -1,0 +1,9 @@
+# 67-fold leave-one-Composite_Mix_ID-out comparison, XGBoost student.
+# Augmented (30 points, all 5 oracles) vs non-augmented, log1p targets.
+learner: xgb
+raw_experiment: exp_033_pa_no_augmentation
+aug_experiment: exp_030_pa_log_target
+n_aug: 30
+loo_dir: data/processed/splits_chemistry/loo
+out_csv: data/processed/xgboost_experiments/loo_comparison_results.csv
+limit: null

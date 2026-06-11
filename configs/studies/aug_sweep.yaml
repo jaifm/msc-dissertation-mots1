@@ -1,0 +1,5 @@
+# n_aug_points sweep mapping diminishing returns of augmentation volume.
+# 0, 30 and 200 already exist as exp_033 / exp_030-variant runs.
+base_experiment: exp_030_pa_log_target
+aug_points: [10, 20, 50, 75, 100, 150, 300, 500]
+persist: true
