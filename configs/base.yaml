@@ -1,0 +1,172 @@
+# ============================================================================
+# BASE CONFIGURATION
+# ----------------------------------------------------------------------------
+# All experiment YAMLs inherit from this file. Keys redefined in an experiment
+# deep-merge over these defaults (lists/scalars replace, dicts merge).
+# ============================================================================
+
+id: base
+description: "Base configuration (defaults only; not runnable on its own)."
+hypothesis: ""
+seed: 42
+
+# Paths are relative to the project root (the folder containing this config).
+# All data lives inside this project under data/ — no external dependencies.
+#
+# SPLIT FORMAT NOTE (two generations):
+#   exp_001–028  use the defaults below: the original random 80/20 split of
+#                expanded_train.csv / expanded_test.csv (data/processed/splits/).
+#                These files include all batches and were produced by data/prepare.py.
+#
+#   exp_029+     override paths to data/processed/splits_chemistry/ which holds
+#                Composite_Mix_ID-keyed splits (default/, loo/, few_shot/, batch_*/).
+#                The base defaults below have no effect on those experiments.
+paths:
+  raw: data/raw
+  splits: data/processed/splits
+  train_csv: expanded_train.csv
+  test_csv: expanded_test.csv
+  experiments_root: data/processed/xgboost_experiments
+
+data:
+  group_column: Composite_Mix_ID
+  viscosity_columns:
+    - Viscosity_at_shear_rate_1_1/s
+    - Viscosity_at_shear_rate_10_1/s
+    - Viscosity_at_shear_rate_100_1/s
+  composition_cols:
+    - Dispersent_Type
+    - Solid_Content_pct
+    - Solid_Additive_pct
+    - NMC_pct
+    - C65_pct
+    - KS6L_pct
+    - PVDF_pct
+
+features:
+  use_engineered: true
+  log_numeric: false
+  exclude_cols: []   # feature names to drop after engineering (SHAP-guided pruning)
+  poly_degree: 0     # 0=disabled, 2=degree-2 polynomial expansion of numeric features
+
+physics:
+  viscosity_shears: [1.0, 10.0, 100.0]
+  models:
+    - cy5
+    - power_law
+    - sisko
+    - williamson
+    - constrained_cy
+  display_names:
+    cy5: "5-parameter CY"
+    power_law: "Power Law"
+    sisko: "Sisko"
+    williamson: "Williamson"
+    constrained_cy: "Constrained CY"
+  targets:
+    cy5: [eta_0, eta_inf, lambda_time, n, a]
+    power_law: [k_consistency, n_flow]
+    sisko: [eta_inf_sisko, k_sisko, n_sisko]
+    williamson: [eta_0, eta_inf, lambda_time, n_w]
+    constrained_cy: [eta_0, lambda_time, n]
+
+xgb:
+  n_trials: 10
+  n_estimators: 100
+  target_transform: none      # options: none, log1p_nonnegative
+  # XGBoost objective function.  Override in experiment YAMLs to change loss.
+  #   reg:squarederror     -- standard MSE (default)
+  #   reg:pseudohubererror -- robust to outlier targets; use objective_params
+  #                           to set huber_slope (delta); default 1.0
+  objective: reg:squarederror
+  objective_params: {}        # extra kwargs forwarded to XGBRegressor
+  per_target_transforms: {}   # target-name → transform; overrides target_transform for that target
+  # Fixed params used by LOO (baseline sweep uses Optuna search; this is only
+  # relevant when a section runs with a fixed XGB config).
+  fixed_params:
+    max_depth: 5
+    learning_rate: 0.05
+    subsample: 0.9
+    colsample_bytree: 0.9
+    reg_lambda: 1.0
+    reg_alpha: 0.01
+    n_estimators: 120
+    verbosity: 0
+
+loo:
+  variants:
+    - {id: exp_loo_row, leave_out_unit: row}
+    - {id: exp_loo_mix, leave_out_unit: mix}
+    - {id: exp_loo_batch, leave_out_unit: batch}
+  target_scope: first          # 'first' = first target per model; 'all' = every target
+
+# Gaussian Process Regression baseline (parallel to XGBoost path).
+# Only consumed when 'gpr_baseline' is listed in run.sections.
+gpr:
+  kernel: matern25          # 'matern25' (default) or 'rbf'
+  n_restarts: 5             # log-marginal-likelihood optimiser restarts
+  target_transform: none    # options: none, log1p_nonnegative
+  normalize_y: true         # centre+scale target inside GPR (recommended)
+  ard: false                # true = one length scale per feature (ARD)
+  per_target_transforms: {} # target-name → transform; overrides target_transform
+
+# Transfer-learning replication of El-Dalahmeh et al. (Energy and AI 2025).
+# Only consumed when 'tl_baseline' is listed in run.sections.
+# This block has no effect on other experiments — the tl: dataclass uses
+# safe defaults so the rest of the pipeline never sees this configuration.
+tl:
+  models: [lightgbm, ols, ridge]
+  source_batch: Batch_1            # paper's pretrain batch
+  target_batch: Batch_2            # paper's fine-tune + evaluation batch
+  test_fraction: 0.20              # outer 80/20 split inside the target batch
+  k_folds: 5                       # inner CV folds on target_train
+  conformal:
+    alphas: [0.10, 0.05]           # nominal 90% and 95% intervals
+    calib_fraction: 0.5            # proper-train vs calibration split
+  lightgbm:
+    n_base_trees: 500              # paper Table 3
+    n_finetune_trees: 100
+    learning_rate_base: 0.10
+    learning_rate_finetune: 0.05
+  # The variants list drives the matrix of TL/no-TL × chained/direct ×
+  # in-sample/OOF × row/group-aware splits.  Default base config runs only
+  # the paper-faithful variant; experiment YAMLs add the leakage-audit ones.
+  variants:
+    - id: tl_paper_chained
+      transfer: true
+      chained: true
+      use_oof: false
+      group_aware_split: false
+      active: true
+
+# Physics-augmented training (supervisor's standardised methodology).
+# Only consumed when 'physics_augmented' is listed in run.sections.
+#
+# CONTRACT (post-supervisor meeting, May 2026):
+#   * Augmentation is applied ONLY to the training rows.  Test rows
+#     pass through unchanged.  This is enforced by data.build_augmented_split
+#     and by a defensive assert in section.py.
+#   * All five physics oracles remain supported because CY5 was empirically
+#     the strongest in exp_030.  The default below reflects that.
+#   * Sample weighting and target transform are configurable but the
+#     dissertation's headline runs use measured_weight=1.0 and
+#     target_transform=log1p_nonnegative (exp_030 / exp_035 onwards).
+physics_augmented:
+  models: [cy5]                        # default: CY5 (best in exp_030); override per-experiment for ablations
+  learners: [xgb]
+  n_aug_points: 30
+  shear_range: [0.1, 1000.0]
+  log_uniform_gamma: true
+  measured_weight: 1.0
+  target_transform: log1p_nonnegative
+
+# Sections to run for this experiment. Options:
+#   baseline           — full 5-model × all-targets sweep with Optuna tuning
+#   sweep              — baseline + log1p_numeric variant comparison
+#   loo                — leave-one-out generalisability (slow)
+#   gpr_baseline       — same sweep using Gaussian Process Regression
+#   gpr_xgb_ensemble   — equal-weight GPR + XGBoost averaging
+#   tl_baseline        — El-Dalahmeh et al. transfer-learning replication
+#   physics_augmented  — supervisor's standardised augmentation methodology
+run:
+  sections: [baseline]
