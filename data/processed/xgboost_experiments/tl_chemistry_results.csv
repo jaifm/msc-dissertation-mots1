@@ -1,0 +1,7 @@
+variant,target_transform,r2_log_pooled,r2_raw_pooled,n_test_points,r2_log_shear_1,r2_raw_shear_1,r2_log_shear_10,r2_raw_shear_10,r2_log_shear_100,r2_raw_shear_100
+tl_lightgbm,log1p_nonnegative,0.5744,0.1919,132,0.2594,-0.0648,0.4382,0.3069,0.6785,0.7441
+tl_lightgbm,none,0.2926,0.1534,132,-0.3705,-0.1156,0.479,0.2921,0.6837,0.6976
+pooled_lightgbm,log1p_nonnegative,0.6245,0.3413,132,0.3437,0.1326,0.5314,0.402,0.6765,0.6987
+pooled_lightgbm,none,0.6153,0.4029,132,0.3261,0.2148,0.577,0.3952,0.548,0.5601
+ridge,log1p_nonnegative,0.8111,0.3885,132,0.6566,0.1911,0.8167,0.7178,0.8273,0.8576
+ridge,none,0.4593,0.497,132,0.2074,0.3423,-0.2386,0.2183,0.5641,0.5336

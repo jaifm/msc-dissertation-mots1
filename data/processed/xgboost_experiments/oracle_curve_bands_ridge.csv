@@ -1,0 +1,9 @@
+oracle_model,shear_band,shear_lo,shear_hi,n,r2_oracle_gt,is_measured_range
+power_law,0.1–1   (below measured),0.1,1.0,2200,0.6509811508804029,False
+power_law,1–10    (measured range),1.0,10.0,2200,0.7218928023826425,True
+power_law,10–100  (measured range),10.0,100.0,2200,0.8108575004263522,True
+power_law,100–1000 (above measured),100.0,1000.0,2156,0.7261864950764263,False
+cy5,0.1–1   (below measured),0.1,1.0,2200,0.5881137631069655,False
+cy5,1–10    (measured range),1.0,10.0,2200,0.7204739936008822,True
+cy5,10–100  (measured range),10.0,100.0,2200,0.7320218937624685,True
+cy5,100–1000 (above measured),100.0,1000.0,2156,0.7005194793841937,False
