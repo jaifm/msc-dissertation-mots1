@@ -1,0 +1,35 @@
+defaults: base
+id: exp_014_gpr_baseline
+description: >
+  Gaussian Process Regression baseline across all five physics models.
+  Uses Matern(nu=2.5) kernel with WhiteKernel noise.  Features are
+  standardised (impute then StandardScale) before GPR, unlike the
+  XGBoost path which uses tree-scale-invariant preprocessing.
+
+hypothesis: >
+  GPR may outperform XGBoost on this ~120-row dataset for two reasons.
+  First, GPR is a Bayesian model that regularises via the marginal
+  likelihood rather than a discrete hyperparameter search — with only
+  10 Optuna trials, XGBoost's search is under-converged, whereas GPR's
+  kernel hyperparameters are optimised analytically.  Second, GPR
+  interpolates smoothly between training points, which suits the
+  continuous composition-to-parameter relationship.  The posterior
+  standard deviation also flags formulations that are extrapolating
+  beyond the training support, which is useful for experimental design.
+
+physics:
+  models:
+    - power_law
+    - sisko
+    - cy5
+    - williamson
+    - constrained_cy
+
+gpr:
+  kernel: matern25
+  n_restarts: 5
+  target_transform: none
+  normalize_y: true
+
+run:
+  sections: [gpr_baseline]

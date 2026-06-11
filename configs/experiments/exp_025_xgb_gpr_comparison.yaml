@@ -1,0 +1,79 @@
+defaults: base
+
+id: exp_025_xgb_gpr_comparison
+description: >
+  Direct XGBoost vs GPR comparison on identical feature sets and all five
+  physics models. Runs baseline (XGBoost) and gpr_baseline (GPR) in one
+  experiment so curve-space RMSE and parameter-space R² are directly
+  comparable between both model families on the same train/test split.
+hypothesis: >
+  Previous best XGBoost results used reduced scope (3 models) and slightly
+  different feature sets to GPR experiments, making cross-model-family
+  comparisons indirect. This experiment uses the same 12-feature SHAP-pruned
+  set (exp_021 exclusions) and all five physics models for both XGBoost and
+  GPR. Per-target log1p transforms are applied to both. Expected outcome:
+  GPR outperforms XGBoost in both parameter-space R² and curve-space RMSE,
+  with the gap largest for complex models (CY5, Williamson) whose many
+  parameters make Optuna-tuned XGBoost less effective than GPR's marginal
+  likelihood optimisation.
+
+physics:
+  models:
+    - power_law
+    - sisko
+    - williamson
+    - cy5
+    - constrained_cy
+
+features:
+  exclude_cols:
+    - PVDF_pct
+    - NMC_pct
+    - NMC_to_binder
+    - conductive_to_binder
+    - conductive_total
+    - nonbinder_total
+    - binder_share
+    - log1p_C65_pct
+    - log1p_KS6L_pct
+    - log1p_Solid_Additive_pct
+    - solid_x_conductive
+    - solid_x_nmc
+
+xgb:
+  n_trials: 10
+  target_transform: none
+  per_target_transforms:
+    k_consistency:    log1p_nonnegative
+    k_sisko:          log1p_nonnegative
+    eta_0:            log1p_nonnegative
+    eta_inf:          log1p_nonnegative
+    eta_inf_sisko:    log1p_nonnegative
+    n_flow:           log1p_nonnegative
+    n_sisko:          log1p_nonnegative
+    n_w:              log1p_nonnegative
+    lambda_time:      log1p_nonnegative
+    n:                log1p_nonnegative
+    a:                log1p_nonnegative
+
+gpr:
+  kernel: matern25_linear
+  n_restarts: 20
+  normalize_y: true
+  ard: true
+  target_transform: none
+  per_target_transforms:
+    k_consistency:    log1p_nonnegative
+    k_sisko:          log1p_nonnegative
+    eta_0:            log1p_nonnegative
+    eta_inf:          log1p_nonnegative
+    eta_inf_sisko:    log1p_nonnegative
+    n_flow:           log1p_nonnegative
+    n_sisko:          log1p_nonnegative
+    n_w:              log1p_nonnegative
+    lambda_time:      log1p_nonnegative
+    n:                log1p_nonnegative
+    a:                log1p_nonnegative
+
+run:
+  sections: [baseline, gpr_baseline]

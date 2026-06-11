@@ -1,0 +1,60 @@
+defaults: base
+
+id: exp_020_gpr_optimised
+description: >
+  Optimised GPR: ARD kernel, per-target log1p transforms, SHAP-pruned features,
+  reduced scope (Power Law, Sisko, Williamson), 10 restarts.
+hypothesis: >
+  exp_019 used a single shared length scale across all features (isotropic
+  kernel).  This means an uninformative feature (e.g. a redundant ratio)
+  contributes as much to the distance metric as Solid_Content_pct, which
+  dominates SHAP importance.  ARD (Automatic Relevance Determination) assigns
+  one length scale per feature; the marginal likelihood optimiser pushes
+  irrelevant features toward their upper bound (large length scale = flat
+  response = ignored), effectively performing soft feature selection within
+  the kernel.  Combined with the SHAP-pruned feature set (10 low-importance
+  features removed), per-target log1p transforms for positive parameters, and
+  reduced model scope (CY5 and Constrained CY dropped), this experiment tests
+  whether a well-configured GPR can materially outperform the isotropic baseline.
+  Restarts increased to 10 to give the L-BFGS-B optimiser more chances to find
+  the global maximum of the log marginal likelihood in a higher-dimensional
+  ARD parameter space.
+
+physics:
+  models:
+    - power_law
+    - sisko
+    - williamson
+
+features:
+  exclude_cols:
+    - PVDF_pct
+    - NMC_pct
+    - NMC_to_binder
+    - conductive_to_binder
+    - conductive_total
+    - nonbinder_total
+    - binder_share
+    - log1p_C65_pct
+    - log1p_KS6L_pct
+    - log1p_Solid_Additive_pct
+
+gpr:
+  kernel: matern25
+  n_restarts: 10
+  normalize_y: true
+  ard: true
+  target_transform: none      # global fallback
+  per_target_transforms:
+    k_consistency:    log1p_nonnegative
+    k_sisko:          log1p_nonnegative
+    eta_0:            log1p_nonnegative
+    eta_inf:          log1p_nonnegative
+    eta_inf_sisko:    log1p_nonnegative
+    n_flow:           log1p_nonnegative
+    n_sisko:          log1p_nonnegative
+    n_w:              log1p_nonnegative
+    lambda_time:      log1p_nonnegative
+
+run:
+  sections: [gpr_baseline]

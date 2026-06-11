@@ -1,0 +1,72 @@
+defaults: base
+
+id: exp_026_gpr_loo
+description: >
+  GPR leave-one-out generalisability evaluation using the best GPR configuration
+  (matern25_linear kernel, ARD, 20 restarts reduced to 3 for speed). Mirrors
+  exp_024 (XGBoost LOO) but with GPR as the base learner, enabling a direct
+  comparison of cross-formulation and cross-batch generalisation between the
+  two model families.
+hypothesis: >
+  NOTE: This experiment predates the Composite_Mix_ID chemistry redesign (May 2026)
+  and uses the old coarser LOO framework (leave_out_unit: mix/batch on 12
+  Formulation×Dispersant groups) rather than the 67-fold Composite_Mix_ID LOO.
+  The R²≈0.63 batch-level reference is from exp_024 under that old framework
+  and is not directly comparable to newer chemistry-standardised LOO results.
+  For the definitive GPR LOO comparison (67 folds, Composite_Mix_ID), see
+  the loo_comparison_gpr study (gpr_loo_results.csv).
+
+  Original hypothesis: GPR's principled uncertainty model may generalise better
+  to unseen formulations under mix-LOO where XGBoost is constrained by
+  fixed_params tuned on the full dataset.  Batch LOO reflects genuine
+  distributional shift between experimental campaigns.
+
+physics:
+  models:
+    - power_law
+    - sisko
+    - williamson
+
+features:
+  exclude_cols:
+    - PVDF_pct
+    - NMC_pct
+    - NMC_to_binder
+    - conductive_to_binder
+    - conductive_total
+    - nonbinder_total
+    - binder_share
+    - log1p_C65_pct
+    - log1p_KS6L_pct
+    - log1p_Solid_Additive_pct
+    - solid_x_conductive
+    - solid_x_nmc
+
+gpr:
+  kernel: matern25_linear
+  n_restarts: 3
+  normalize_y: true
+  ard: true
+  target_transform: none
+  per_target_transforms:
+    k_consistency:    log1p_nonnegative
+    k_sisko:          log1p_nonnegative
+    eta_0:            log1p_nonnegative
+    eta_inf:          log1p_nonnegative
+    eta_inf_sisko:    log1p_nonnegative
+    n_flow:           log1p_nonnegative
+    n_sisko:          log1p_nonnegative
+    n_w:              log1p_nonnegative
+    lambda_time:      log1p_nonnegative
+    n:                log1p_nonnegative
+    a:                log1p_nonnegative
+
+loo:
+  model: gpr
+  variants:
+    - {id: gpr_loo_mix,   leave_out_unit: mix}
+    - {id: gpr_loo_batch, leave_out_unit: batch}
+  target_scope: first
+
+run:
+  sections: [loo]

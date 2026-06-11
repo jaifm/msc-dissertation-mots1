@@ -1,0 +1,42 @@
+defaults: base
+
+id: exp_016_reduced_scope
+description: >
+  Reduced model scope: Power Law, Sisko, Williamson only. CY5 and Constrained CY
+  removed. Per-target log1p transforms applied to positive targets.
+hypothesis: >
+  CY5 (5 targets) and Constrained CY (3 targets) are dominated by lambda_time
+  and shape parameter a, both of which have negative test R² across all prior
+  experiments.  Including them depresses the reported best-model R² and makes
+  it harder to see whether composition genuinely predicts the tractable
+  parameters.  Restricting to Power Law, Sisko, and Williamson (9 targets total)
+  removes the noise sources and focuses optimisation effort on the three models
+  where at least one target (k_consistency, k_sisko, eta_inf) achieves R² > 0.7.
+  Combined with per-target log1p transforms for positive parameters, the
+  expected result is a cleaner ranking and a higher reported best-model R².
+
+physics:
+  models:
+    - power_law
+    - sisko
+    - williamson
+
+xgb:
+  n_trials: 10
+  target_transform: none      # global fallback; per_target_transforms takes priority
+  per_target_transforms:
+    # Viscosity scale parameters: positive, right-skewed
+    k_consistency:    log1p_nonnegative
+    k_sisko:          log1p_nonnegative
+    eta_0:            log1p_nonnegative
+    eta_inf:          log1p_nonnegative
+    eta_inf_sisko:    log1p_nonnegative
+    # Flow-index parameters: positive
+    n_flow:           log1p_nonnegative
+    n_sisko:          log1p_nonnegative
+    n_w:              log1p_nonnegative
+    # lambda_time: positive in these three models — apply log1p
+    lambda_time:      log1p_nonnegative
+
+run:
+  sections: [baseline]

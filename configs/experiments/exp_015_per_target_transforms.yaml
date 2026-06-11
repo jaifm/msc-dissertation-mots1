@@ -1,0 +1,45 @@
+defaults: base
+
+id: exp_015_per_target_transforms
+description: >
+  Per-target transform selection: log1p for positive viscosity parameters,
+  logit for bounded flow indices, none for parameters with indeterminate sign.
+hypothesis: >
+  A single global transform (exp_005 used log1p for all targets) is a compromise
+  that fits some targets well and others poorly.  The key distinction is between
+  targets that are strictly positive (k_*, eta_0, eta_inf) and those with
+  indeterminate sign (lambda_time, a).  Applying log1p_nonnegative only to the
+  positive targets and no transform to the sign-ambiguous ones should reduce
+  target-space mismatch: log1p compresses right-skewed distributions that
+  otherwise cause large squared-error gradients on extreme values, while leaving
+  sign-ambiguous targets in their natural scale avoids shift-correction artifacts.
+  Note: logit was tested for the flow-index parameters (n_flow, n_sisko, n_w, n)
+  but rejected because n_w reaches exactly 1.0 in some physics fits (logit → +inf
+  before clipping) and test-set n_flow/n_sisko extend slightly beyond training
+  bounds; logit amplifies these boundary effects while log1p handles them safely.
+
+xgb:
+  n_trials: 10
+  target_transform: none      # global fallback; per_target_transforms takes priority
+  per_target_transforms:
+    # --- Viscosity scale parameters: positive, right-skewed ---
+    k_consistency:    log1p_nonnegative
+    k_sisko:          log1p_nonnegative
+    eta_0:            log1p_nonnegative
+    eta_inf:          log1p_nonnegative
+    eta_inf_sisko:    log1p_nonnegative
+    # --- Flow-index parameters: positive, right-skewed → log1p ---
+    # Logit was tested but rejected: n_w reaches exactly 1.0 in physics fits
+    # (logit → +13.8, blows std 0.13→3.24) and test n_flow/n_sisko extend
+    # slightly beyond training max, which logit amplifies to large OOD jumps.
+    # log1p_nonnegative is monotone and robust to these boundary cases.
+    n_flow:           log1p_nonnegative
+    n_sisko:          log1p_nonnegative
+    n_w:              log1p_nonnegative
+    n:                log1p_nonnegative
+    # --- Parameters with indeterminate sign: no transform ---
+    lambda_time:      none
+    a:                none
+
+run:
+  sections: [baseline]
