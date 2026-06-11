@@ -1,0 +1,62 @@
+defaults: base
+
+id: exp_035_pa_chemistry_standardised
+description: >
+  Headline run under the chemistry-based split where chemistry is defined
+  as the full unique recipe: Formulation + Dispersant + Solid_Content_pct
+  + Solid_Additive_pct (= Composite_Mix_ID).  Holds out 16 specific
+  Composite_Mix_IDs (~24 %, stratified across all Formulation×Dispersant
+  groups) so the test set is never seen by the model at any level of
+  composition.  All five physics oracles run; augmentation applied to
+  training rows only.
+
+hypothesis: >
+  Holding out specific full recipes is the strictest generalisation test:
+  the model must interpolate in composition space to predict viscosity for
+  exact formulations it has never encountered.  Expected R² is below
+  exp_030's fixed-split result because the test rows share no
+  Composite_Mix_ID with training.
+
+  OUTCOME: R²(log)=0.753 (best oracle: power_law, n_test=132).  This
+  confirms the degradation from removing recipe overlap: the fixed random
+  split (exp_030, R²(log)=0.815) benefited from having other batches of
+  the same recipe in training.  The 0.062 gap quantifies the recipe-level
+  leakage in the random split.  The 0.753 figure is the honest headline
+  number for the dissertation's generalisation claim under the standard
+  evaluation regime.
+
+# Point at the new fixed chemistry-based split files.
+paths:
+  splits: data/processed/splits_chemistry/default
+  train_csv: train.csv
+  test_csv: test.csv
+
+features:
+  use_engineered: false
+  log_numeric: false
+
+# Physics block left empty — the section runs its own per-row fits and
+# the runner skips the cached physics_datasets build (see runner.py).
+physics:
+  models: []
+
+xgb:
+  n_trials: 0
+
+# Default physics_augmented block (from base.yaml) already specifies:
+#   models: [cy5]
+#   learners: [xgb]
+#   n_aug_points: 30
+#   target_transform: log1p_nonnegative
+# Override here to run all five oracles for the headline comparison.
+physics_augmented:
+  models: [power_law, constrained_cy, cy5, sisko, williamson]
+  learners: [xgb]
+  n_aug_points: 30
+  shear_range: [0.1, 1000.0]
+  log_uniform_gamma: true
+  measured_weight: 1.0
+  target_transform: log1p_nonnegative
+
+run:
+  sections: [physics_augmented]

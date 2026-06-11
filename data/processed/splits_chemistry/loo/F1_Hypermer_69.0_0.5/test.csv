@@ -1,0 +1,6 @@
+Formulation,Dispersent_Type,Solid_Content_pct,Solid_Additive_pct,Viscosity_at_shear_rate_1_1/s,Viscosity_at_shear_rate_10_1/s,Viscosity_at_shear_rate_100_1/s,Source_Batch,Composite_Mix_ID,NMC_pct,C65_pct,KS6L_pct,PVDF_pct
+F1,Hypermer,69.0,0.5,4.98152,2.31158,1.36993,Batch_1,F1_Hypermer_69.0_0.5,96.0,2.0,0.0,2.0
+F1,Hypermer,69.0,0.5,3.05013,1.3047,0.74731,Batch_1,F1_Hypermer_69.0_0.5,96.0,2.0,0.0,2.0
+F1,Hypermer,69.0,0.5,2.8679,1.07754,0.60523,Batch_1,F1_Hypermer_69.0_0.5,96.0,2.0,0.0,2.0
+F1,Hypermer,69.0,0.5,5.41857,2.25612,1.38485,Batch_2,F1_Hypermer_69.0_0.5,96.0,2.0,0.0,2.0
+F1,Hypermer,69.0,0.5,6.47002,2.91258,1.57976,Batch_2,F1_Hypermer_69.0_0.5,96.0,2.0,0.0,2.0

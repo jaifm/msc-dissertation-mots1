@@ -1,0 +1,2 @@
+Formulation,Dispersent_Type,Solid_Content_pct,Solid_Additive_pct,Viscosity_at_shear_rate_1_1/s,Viscosity_at_shear_rate_10_1/s,Viscosity_at_shear_rate_100_1/s,Source_Batch,Composite_Mix_ID,NMC_pct,C65_pct,KS6L_pct,PVDF_pct
+F2,Triton,73.0,0.5,4.67554,2.42371,1.32127,Batch_1,F2_Triton_73.0_0.5,97.0,1.5,0.0,1.5

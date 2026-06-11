@@ -1,0 +1,112 @@
+defaults: base
+
+id: exp_037_gpr_chemistry_split
+description: >
+  GPR vs XGBoost parameter-prediction comparison on the chemistry-standardised
+  split (splits_chemistry/default, 16 held-out Composite_Mix_IDs, n_test≈132).
+  Mirrors exp_025 but uses the strict hold-out split so results are directly
+  comparable to exp_035's physics-augmented XGBoost (R²(log)=0.753).
+
+  The parameter-prediction paradigm: fit physics oracles locally per training
+  row to obtain ground-truth parameters, then train models to predict those
+  parameters from composition for unseen recipes.  At inference, predicted
+  parameters reconstruct the full viscosity curve.
+
+  This is Paradigm A in the dissertation's model taxonomy:
+    Paradigm A (this exp):  composition → [model] → parameters → curve
+    Paradigm B (exp_035):   composition + local oracle → augmented data → [model] → viscosity
+
+hypothesis: >
+  GPR should outperform XGBoost on parameter prediction on the chemistry split
+  (consistent with exp_025's finding: GPR mean R²=0.559 vs XGBoost 0.456 on
+  old split).  Both should underperform the physics-augmented XGBoost (exp_035
+  R²(log)=0.753) because Paradigm A is bottlenecked by n-prediction (R²≈0.31)
+  while Paradigm B bypasses this by using per-row local oracle fits.
+
+  The gap between Paradigm A (GPR) and Paradigm B (XGBoost augmented) quantifies
+  the benefit of augmentation over direct parameter learning.
+
+  OUTCOME: Both Paradigm A models collapse on the chemistry split.
+    XGBoost mean R² ≈ 0.014  (from 0.456 on old random split — near-total failure)
+    GPR     mean R² ≈ 0.166  (from 0.559 on old random split — severely degraded)
+    Physics-augmented XGBoost (exp_035): R²(log) = 0.753  (robust by comparison)
+
+  Per-model breakdown (test R²):
+    XGBoost: williamson=0.058, cy5=0.034, constrained_cy=-0.006,
+             power_law=-0.007, sisko=-0.013
+    GPR:     power_law=0.241, williamson=0.169, constrained_cy=0.154,
+             cy5=0.140, sisko=0.128
+
+  KEY FINDING: The two paradigms show very different sensitivity to the
+  interpolation vs extrapolation regime:
+
+    Paradigm A (parameter prediction):
+      GPR:     interpolation R²=0.559 → extrapolation R²=0.166  (drop −0.393)
+      XGBoost: interpolation R²=0.456 → extrapolation R²=0.014  (drop −0.442)
+    Paradigm B (physics-augmented XGBoost):
+      interpolation R²=0.815 → extrapolation R²=0.753            (drop −0.062)
+
+  Note: unseen recipes close in composition space (the interpolation regime,
+  exp_025) is the realistic deployment scenario; Paradigm A handles this
+  adequately.  Paradigm B is more robust in both regimes because it never
+  attempts to infer K and n globally — it uses per-row local oracle fits and
+  learns viscosity directly, bypassing the n-prediction bottleneck.
+
+  NOTE: Many sklearn GPR convergence warnings (ARD length scales hitting
+  bounds) indicate kernel hyperparameter optimisation is unreliable on this
+  strict split with high-dimensional composition space.
+
+paths:
+  splits: data/processed/splits_chemistry/default
+  train_csv: train.csv
+  test_csv: test.csv
+
+physics:
+  models:
+    - power_law
+    - sisko
+    - williamson
+    - constrained_cy
+    - cy5
+
+features:
+  use_engineered: false
+  log_numeric: false
+
+xgb:
+  n_trials: 10
+  target_transform: none
+  per_target_transforms:
+    k_consistency:    log1p_nonnegative
+    k_sisko:          log1p_nonnegative
+    eta_0:            log1p_nonnegative
+    eta_inf:          log1p_nonnegative
+    eta_inf_sisko:    log1p_nonnegative
+    n_flow:           log1p_nonnegative
+    n_sisko:          log1p_nonnegative
+    n_w:              log1p_nonnegative
+    lambda_time:      log1p_nonnegative
+    n:                log1p_nonnegative
+    a:                log1p_nonnegative
+
+gpr:
+  kernel: matern25_linear
+  n_restarts: 20
+  normalize_y: true
+  ard: true
+  target_transform: none
+  per_target_transforms:
+    k_consistency:    log1p_nonnegative
+    k_sisko:          log1p_nonnegative
+    eta_0:            log1p_nonnegative
+    eta_inf:          log1p_nonnegative
+    eta_inf_sisko:    log1p_nonnegative
+    n_flow:           log1p_nonnegative
+    n_sisko:          log1p_nonnegative
+    n_w:              log1p_nonnegative
+    lambda_time:      log1p_nonnegative
+    n:                log1p_nonnegative
+    a:                log1p_nonnegative
+
+run:
+  sections: [baseline, gpr_baseline]

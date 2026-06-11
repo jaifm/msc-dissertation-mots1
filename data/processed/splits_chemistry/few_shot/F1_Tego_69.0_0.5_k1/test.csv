@@ -1,0 +1,5 @@
+Formulation,Dispersent_Type,Solid_Content_pct,Solid_Additive_pct,Viscosity_at_shear_rate_1_1/s,Viscosity_at_shear_rate_10_1/s,Viscosity_at_shear_rate_100_1/s,Source_Batch,Composite_Mix_ID,NMC_pct,C65_pct,KS6L_pct,PVDF_pct
+F1,Tego,69.0,0.5,5.43188,2.71165,1.27474,Batch_1,F1_Tego_69.0_0.5,96.0,2.0,0.0,2.0
+F1,Tego,69.0,0.5,3.05607,2.12471,0.98948,Batch_1,F1_Tego_69.0_0.5,96.0,2.0,0.0,2.0
+F1,Tego,69.0,0.5,3.09407,2.5161,1.69576,Batch_2,F1_Tego_69.0_0.5,96.0,2.0,0.0,2.0
+F1,Tego,69.0,0.5,2.51492,2.05296,1.36347,Batch_2,F1_Tego_69.0_0.5,96.0,2.0,0.0,2.0

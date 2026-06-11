@@ -1,0 +1,3 @@
+Formulation,Dispersent_Type,Solid_Content_pct,Solid_Additive_pct,Viscosity_at_shear_rate_1_1/s,Viscosity_at_shear_rate_10_1/s,Viscosity_at_shear_rate_100_1/s,Source_Batch,Composite_Mix_ID,NMC_pct,C65_pct,KS6L_pct,PVDF_pct
+F3,none,73.0,0.0,5.16984,4.16551,2.94644,Batch_1,F3_none_73.0_0.0,96.0,0.0,2.0,2.0
+F3,none,73.0,0.0,5.84084,4.20573,2.84946,Batch_1,F3_none_73.0_0.0,96.0,0.0,2.0,2.0

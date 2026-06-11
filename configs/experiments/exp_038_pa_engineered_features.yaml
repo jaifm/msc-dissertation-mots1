@@ -1,0 +1,76 @@
+defaults: base
+
+id: exp_038_pa_engineered_features
+description: >
+  Identical to exp_035 (physics-augmented XGBoost on chemistry-standardised
+  split) but with use_engineered=true.  Tests whether adding physics-motivated
+  engineered features improves on the headline R²(log)=0.753.
+
+  Engineered features added on top of raw composition:
+    GROUP 1 — Additive totals:
+      conductive_total = C65_pct + KS6L_pct
+      nonbinder_total  = NMC_pct + C65_pct + KS6L_pct
+      binder_share     = PVDF_pct (alias)
+    GROUP 2 — Particle-to-binder ratios:
+      NMC_to_binder        = NMC_pct / PVDF_pct
+      conductive_to_binder = conductive_total / PVDF_pct
+      solid_to_additive    = Solid_Content_pct / Solid_Additive_pct
+    GROUP 3 — Interaction products:
+      solid_x_nmc        = Solid_Content_pct × NMC_pct
+      solid_x_pvdf       = Solid_Content_pct × PVDF_pct
+      solid_x_conductive = Solid_Content_pct × conductive_total
+    GROUP 4 — Log-stabilised small fractions:
+      log1p(Solid_Additive_pct), log1p(C65_pct), log1p(KS6L_pct)
+
+  All other settings are identical to exp_035: chemistry split, power_law +
+  all five oracles, n_aug_points=30, log1p target transform, no Optuna tuning.
+
+hypothesis: >
+  The engineered features provide explicit particle-level interaction signals
+  (crowding ratios, network reinforcement products) that the raw composition
+  columns express only implicitly.  XGBoost can approximate these interactions
+  via split sequences, but pre-computing them reduces the depth and number of
+  trees needed.  Expected improvement: +0.02 to +0.05 R²(log) over exp_035.
+
+  If the improvement is negligible (<0.01), it suggests the XGBoost already
+  captures these interactions adequately given 30× augmented training data.
+  If negative, the added features introduce noise or multicollinearity with the
+  raw composition columns that hurts generalisation on the OOD test set.
+
+  OUTCOME: No meaningful improvement over exp_035. Best oracle is cy5 with
+  R²(log)=0.757 vs exp_035's power_law 0.753 (+0.004, within noise).
+  power_law itself drops slightly (0.753 → 0.737). Low-shear performance
+  remains poor across all oracles (R²≈0.08–0.15 at γ̇=1 s⁻¹).
+
+  Conclusion: XGBoost with 30× augmented training signal already captures
+  the particle-to-binder interaction structure implicitly. The bottleneck is
+  not feature representation but fundamental OOD difficulty on the chemistry
+  split — the n-prediction problem is not solved by richer input features.
+  Engineered features are not worth the added complexity for this pipeline.
+
+paths:
+  splits: data/processed/splits_chemistry/default
+  train_csv: train.csv
+  test_csv: test.csv
+
+features:
+  use_engineered: true
+  log_numeric: false
+
+physics:
+  models: []
+
+xgb:
+  n_trials: 0
+
+physics_augmented:
+  models: [power_law, constrained_cy, cy5, sisko, williamson]
+  learners: [xgb]
+  n_aug_points: 30
+  shear_range: [0.1, 1000.0]
+  log_uniform_gamma: true
+  measured_weight: 1.0
+  target_transform: log1p_nonnegative
+
+run:
+  sections: [physics_augmented]

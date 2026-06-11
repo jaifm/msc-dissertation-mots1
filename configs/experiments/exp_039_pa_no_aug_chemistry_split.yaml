@@ -1,0 +1,69 @@
+defaults: base
+
+id: exp_039_pa_no_aug_chemistry_split
+description: >
+  No-augmentation baseline on the chemistry-standardised split (same strict
+  hold-out as exp_035).  Mirrors exp_033 exactly — long-format XGBoost with
+  log1p targets, n_aug_points=0 — but uses the chemistry split so the result
+  is directly comparable to exp_035 (augmented, R²(log)=0.753).
+
+  This closes the gap in the ablation: exp_033 showed augmentation gave no
+  benefit on the random (leaky) split, but we never tested whether augmentation
+  helps when there is no recipe leakage in the test set.
+
+hypothesis: >
+  Without augmentation the model trains on only 3 measured points per recipe
+  (~399 total rows) vs exp_035's ~4,389 augmented rows.  On the chemistry split
+  there is no recipe leakage, so any compositional signal must generalise from
+  the training distribution to genuinely unseen formulation groups.
+
+  Two plausible outcomes:
+    (a) R²(log) ≈ 0.753 — augmentation gives no benefit even without leakage,
+        meaning the ceiling is entirely set by composition-space extrapolation
+        difficulty, not training set density.
+    (b) R²(log) < 0.753 — augmentation does help in the honest evaluation regime,
+        providing denser coverage of the viscosity-shear curve that improves
+        interpolation within the test recipes' shear rate range.
+
+  Outcome (b) would be the stronger argument for physics augmentation in the
+  dissertation; outcome (a) would reinforce the n-extrapolation bottleneck story.
+
+  OUTCOME: R²(log)=0.732 — outcome (b). Augmentation provides a genuine
+  +0.021 R²(log) benefit on the honest chemistry split (0.732 → 0.753 in
+  exp_035). All five oracles give identical results since with n_aug_points=0
+  the oracle is never invoked; training is purely on the 3 measured points per
+  recipe (399 rows total).
+
+  This confirms physics augmentation adds real value in the extrapolation
+  regime: the 30× denser shear-rate coverage improves the model's ability to
+  generalise the viscosity curve shape to unseen recipes. The improvement is
+  modest (+0.021) because the binding constraint remains n-prediction, not
+  training set density — but the augmentation benefit is no longer zero once
+  leakage is removed from the evaluation.
+
+paths:
+  splits: data/processed/splits_chemistry/default
+  train_csv: train.csv
+  test_csv: test.csv
+
+features:
+  use_engineered: false
+  log_numeric: false
+
+physics:
+  models: []
+
+xgb:
+  n_trials: 0
+
+physics_augmented:
+  models: [power_law, constrained_cy, cy5, sisko, williamson]
+  learners: [xgb]
+  n_aug_points: 0              # measured points only; no augmentation
+  shear_range: [0.1, 1000.0]
+  log_uniform_gamma: true
+  measured_weight: 1.0
+  target_transform: log1p_nonnegative
+
+run:
+  sections: [physics_augmented]
