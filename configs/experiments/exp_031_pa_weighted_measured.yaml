@@ -1,0 +1,47 @@
+defaults: base
+
+id: exp_031_pa_weighted_measured
+description: >
+  Physics-augmented training — up-weighted measured points, raw Pa·s
+  targets.  Identical to exp_029 except each of the three measured
+  viscosities per training row receives sample_weight=10 while
+  augmented points keep weight=1.  With 30 augmented points per row
+  the default equal weighting gives measured observations only 3/(3+30)
+  ≈ 9% of the gradient signal.  Weight=10 raises their share to
+  30/(30+30) = 50%, making them as influential in total as the entire
+  augmented set.
+
+hypothesis: >
+  Up-weighting measured points should anchor the model more tightly to
+  the real observations and reduce over-reliance on the physics oracle's
+  interpolated values.
+
+  OUTCOME: Marginal raw-space improvement over exp_029, but this
+  experiment uses raw Pa·s targets (no log transform) so the η(1) scale
+  bias makes results hard to interpret.  Not directly comparable to
+  exp_030.  The finding that log-space R² is invariant to augmentation
+  volume (exp_030 vs exp_033) suggests up-weighting measured points
+  also provides no meaningful benefit in log space.  Superseded as a
+  design choice by exp_030 (log transform without up-weighting).
+
+features:
+  use_engineered: false
+  log_numeric: false
+
+physics:
+  models: []
+
+xgb:
+  n_trials: 0
+
+physics_augmented:
+  models: [power_law, constrained_cy]
+  learners: [xgb]
+  n_aug_points: 30
+  shear_range: [0.1, 1000.0]
+  log_uniform_gamma: true
+  measured_weight: 10.0                 # key change vs exp_029
+  target_transform: none
+
+run:
+  sections: [physics_augmented]

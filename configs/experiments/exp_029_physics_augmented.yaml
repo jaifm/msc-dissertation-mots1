@@ -1,0 +1,56 @@
+defaults: base
+
+id: exp_029_physics_augmented
+description: >
+  Physics-augmented training (supervisor's protocol).  On the train rows
+  only, scipy is used to fit a physically-bounded rheology model
+  (Power Law or constrained CY) row-by-row.  30 additional shear-rate
+  samples per row are drawn log-uniformly from [0.1, 1000] s⁻¹ and the
+  fitted forward model is evaluated at each, producing a long-format
+  (composition, log γ̇) → η training set ~30× denser than the original
+  three measurements.  XGBoost and GPR students are trained on the
+  expanded set and evaluated on the test rows' three measured viscosities
+  for direct comparison against the parameter-prediction baselines and
+  the El-Dalahmeh et al. transfer-learning numbers.
+
+hypothesis: >
+  The physics-augmented protocol sidesteps two structural problems in the
+  parameter-prediction pipeline: (a) the scipy fit is used only as a smooth
+  interpolator, not as a noisy target; (b) the student sees a much denser
+  supervisory signal without leaking test data.
+
+  OUTCOME (raw Pa·s evaluation): R²=0.69–0.72 across oracles — η(1)
+  dominates the loss due to its ~100× larger Pa·s scale, masking poor η(100)
+  fit.  Negative η(100) predictions observed.  This motivated the log1p
+  target transform in exp_030.  Raw-space R² was inflated by the η(1) scale
+  bias and should not be used as the primary metric — see exp_030 for the
+  corrected evaluation in log space.
+
+# Inherit engineered features from base; the physics-augmented section
+# uses the same feature set as exp_001 / exp_005 so its results are
+# directly comparable.
+features:
+  use_engineered: false
+  log_numeric: false
+
+# physics block left at defaults — the physics_augmented section does
+# its OWN per-row fit and does not consume the cached physics_datasets
+# the runner would otherwise build.  Setting models: [] tells the runner
+# to skip the cache build entirely (see runner.py _needs_physics gate).
+physics:
+  models: []
+
+xgb:
+  n_trials: 0
+
+physics_augmented:
+  models: [power_law, constrained_cy]   # both, per supervisor agreement
+  learners: [xgb]                  # full matrix; 4 (oracle, learner) cells
+  n_aug_points: 30
+  shear_range: [0.1, 1000.0]
+  log_uniform_gamma: true
+  measured_weight: 1.0                  # baseline: equal weighting
+  target_transform: none                # raw Pa·s; flip to log1p in a follow-up
+
+run:
+  sections: [physics_augmented]

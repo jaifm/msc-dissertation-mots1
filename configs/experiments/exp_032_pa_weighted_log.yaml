@@ -1,0 +1,47 @@
+defaults: base
+
+id: exp_032_pa_weighted_log
+description: >
+  Physics-augmented training — up-weighted measured points AND log1p
+  target transform.  Combines both modifications from exp_030 and
+  exp_031: measured rows receive sample_weight=10 and viscosities are
+  log1p-transformed before fitting.  This is the most complete version
+  of the physics-augmented protocol: the log transform prevents negative
+  predictions and equalises shear-rate contributions to the loss, while
+  the higher weight on real observations ensures the model is strongly
+  anchored to ground-truth data rather than interpolated physics values.
+
+hypothesis: >
+  The combination of log-transform and measured up-weighting should
+  produce the best overall performance of the four physics-augmented
+  variants.
+
+  OUTCOME: No improvement over exp_030 (log transform alone, equal
+  weights, 30 pts).  The up-weighting and the higher n_aug_points=200
+  did not shift log-space R² beyond the ~0.815 ceiling observed across
+  all variants.  This confirmed that neither the sample weight ratio nor
+  augmentation volume is the binding constraint — the bottleneck is
+  compositional extrapolation (inability to predict the flow index n for
+  unseen recipes), which neither knob addresses.
+
+features:
+  use_engineered: false
+  log_numeric: false
+
+physics:
+  models: []
+
+xgb:
+  n_trials: 0
+
+physics_augmented:
+  models: [power_law, constrained_cy, cy5, sisko, williamson]
+  learners: [xgb]
+  n_aug_points: 200
+  shear_range: [0.1, 1000.0]
+  log_uniform_gamma: true
+  measured_weight: 10.0                 # up-weight real observations
+  target_transform: log1p_nonnegative   # log-transform targets
+
+run:
+  sections: [physics_augmented]

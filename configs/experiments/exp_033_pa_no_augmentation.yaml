@@ -1,0 +1,47 @@
+defaults: base
+
+id: exp_033_pa_no_augmentation
+description: >
+  No-augmentation baseline for the physics-augmented pipeline.  Uses
+  the identical long-format (composition, log γ̇) → η setup as exp_030
+  but sets n_aug_points=0 so the training set contains only the three
+  real measured viscosities per row (408 points total vs ~4,455 in
+  exp_030).  The physics oracle is invoked but produces no augmented
+  data; the log1p target transform and XGBoost student are kept
+  constant so the only variable is whether the augmented data helps.
+
+hypothesis: >
+  Without augmentation the model sees the same composition features
+  but only 408 training samples instead of ~4,455.  Performance is
+  expected to be substantially worse.
+
+  KEY FINDING: R²(log)=0.815 — IDENTICAL to exp_030 (augmented, 200 pts).
+  The hypothesis was falsified: augmentation provides zero mean accuracy
+  benefit in log space.  The apparent raw-space advantage of augmentation
+  (exp_030 R²(raw)=0.738 vs this 0.704) was an artefact of the η(1)
+  Pa·s scale dominating the raw-space metric.  Augmentation does provide
+  stability benefits: fewer catastrophic LOO failures, slightly better
+  η(100) R² per shear rate.  The fundamental bottleneck is compositional
+  extrapolation, not training set size.
+
+features:
+  use_engineered: false
+  log_numeric: false
+
+physics:
+  models: []
+
+xgb:
+  n_trials: 0
+
+physics_augmented:
+  models: [power_law]          # oracle irrelevant — n_aug_points=0
+  learners: [xgb]
+  n_aug_points: 0              # measured points only; no augmentation
+  shear_range: [0.1, 1000.0]
+  log_uniform_gamma: true
+  measured_weight: 1.0
+  target_transform: log1p_nonnegative
+
+run:
+  sections: [physics_augmented]

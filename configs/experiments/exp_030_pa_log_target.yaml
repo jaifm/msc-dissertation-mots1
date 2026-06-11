@@ -1,0 +1,54 @@
+defaults: base
+
+id: exp_030_pa_log_target
+description: >
+  Physics-augmented training — log1p target transform.  Identical to
+  exp_029 (Power Law + Constrained CY oracles, XGBoost student, equal
+  sample weights) except viscosities are log1p-transformed before
+  fitting and inverse-transformed for evaluation.  Addresses the two
+  failure modes observed in exp_029: (a) negative viscosity predictions
+  at η(100) caused by unconstrained regression in raw Pa·s space; (b)
+  η(1) dominating the loss because its Pa·s values are ~100× larger
+  than η(100), causing the model to under-fit the high-shear region.
+
+hypothesis: >
+  Log-transforming the target eliminates negative predictions and compresses
+  the viscosity scale so all three shear rates contribute roughly equally
+  to the loss.
+
+  OUTCOME: R²(log)=0.815 on the fixed random split — identical to the
+  no-augmentation baseline (exp_033).  The apparent raw-space gain
+  (R²(raw)=0.738 vs 0.704) was a metric artefact: η(1) Pa·s values are
+  ~100× larger than η(100), inflating raw-space R² for whichever model
+  fits η(1) best.  In log space augmentation provides zero mean accuracy
+  benefit.  Augmentation does improve η(100) stability and reduces
+  worst-case LOO failures — see the loo_comparison and
+  batch_comparison studies for the full evaluation.
+
+  NOTE ON n_aug_points: this config uses 200 (original exploratory value).
+  All production comparisons (LOO, batch, few-shot) use n_aug_points=30,
+  which the calling scripts override at runtime.  The aug-sweep
+  (aug_sweep study) confirmed no material difference between 10 and 500
+  points in log-space R².
+
+features:
+  use_engineered: false
+  log_numeric: false
+
+physics:
+  models: []
+
+xgb:
+  n_trials: 0
+
+physics_augmented:
+  models: [power_law, constrained_cy, cy5, sisko, williamson]
+  learners: [xgb]
+  n_aug_points: 200  # original; production runs override to 30 — see note above
+  shear_range: [0.1, 1000.0]
+  log_uniform_gamma: true
+  measured_weight: 1.0
+  target_transform: log1p_nonnegative   # key change vs exp_029
+
+run:
+  sections: [physics_augmented]

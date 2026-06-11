@@ -1,0 +1,47 @@
+defaults: base
+
+id: exp_034_pa_tuned
+description: >
+  Physics-augmented training with Optuna hyperparameter tuning.
+  Identical to exp_030 (log1p targets, all five oracles, XGBoost
+  student) but with 30 Optuna TPE trials per (oracle, learner) cell.
+  Each trial optimises on a random 80/20 hold-out split of the
+  augmented training set with sample weights included, then the best
+  params are used to refit on the full training set.
+
+hypothesis: >
+  The default hyperparameters in exp_030 were not tuned for the augmented
+  long-format dataset.  Optuna tuning on a held-out slice of the augmented
+  training set should find better regularisation and tree depth.
+
+  OUTCOME: No improvement — raw R²=0.695–0.728 across oracles vs
+  exp_030's 0.695–0.738 (within noise).  Tuning on a random 80/20 split
+  of the augmented training set did not transfer to the fixed chemistry
+  test set, likely because the augmented training distribution and the
+  test distribution differ in ways that random splitting does not capture.
+  NOTE: this experiment ran before log-space R² was added to the pipeline,
+  so results are raw-space only and not directly comparable to exp_030's
+  R²(log)=0.815.  Tuning is unlikely to help in log space given the
+  augmentation-volume invariance found across exp_030/033.
+
+features:
+  use_engineered: false
+  log_numeric: false
+
+physics:
+  models: []
+
+xgb:
+  n_trials: 30
+
+physics_augmented:
+  models: [power_law, constrained_cy, cy5, sisko, williamson]
+  learners: [xgb]
+  n_aug_points: 30
+  shear_range: [0.1, 1000.0]
+  log_uniform_gamma: true
+  measured_weight: 1.0
+  target_transform: log1p_nonnegative
+
+run:
+  sections: [physics_augmented]
