@@ -1,0 +1,25 @@
+defaults: base
+id: exp_006b_high_trials_raw
+description: >
+  Engineered features, 50 Optuna trials, no target transform.
+  Isolates the effect of a larger hyperparameter search budget while holding
+  all other settings equal to exp_001_baseline. (raw)
+hypothesis: >
+  With only 10 Optuna trials (exp_001), TPE has insufficient warm-up to
+  meaningfully exploit the 8-dimensional search space (max_depth, lr,
+  subsample, colsample, lambda, alpha, min_child_weight, gamma).  Increasing
+  to 50 trials gives the sampler enough exploration to identify genuinely
+  good regularisation settings for the ~120-row training set, with diminishing
+  returns expected beyond this point.  Gains should be most visible for models
+  with many targets (CY5, Williamson) where 10 trials left the tuning
+  under-converged.
+
+features:
+  use_engineered: false
+  log_numeric: false
+
+xgb:
+  n_trials: 50
+
+run:
+  sections: [baseline]

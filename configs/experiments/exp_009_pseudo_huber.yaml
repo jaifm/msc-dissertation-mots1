@@ -1,0 +1,48 @@
+defaults: base
+id: exp_009_pseudo_huber
+description: >
+  Engineered features with pseudo Huber loss objective (reg:pseudohubererror),
+  20 Optuna trials.
+hypothesis: >
+  The default squared-error objective is sensitive to outlier target values.
+  Failed physics fits fall back to the model's initial parameter vector (p0),
+  which produces outlier targets that may not reflect real rheological behaviour.
+  The pseudo Huber loss applies full L2 penalty to small residuals but
+  transitions to L1-like behaviour for large residuals, down-weighting these
+  outlier targets without discarding them entirely.
+
+  Critically, the pseudo Huber delta (huber_slope) must be calibrated to the
+  scale of the residuals.  Raw rheology targets span 1–1000 Pa·s; a delta of
+  1.0 would put virtually all residuals in the L1 regime, which gives the model
+  only sign information and prevents learning.  Applying log1p_nonnegative first
+  compresses all targets to roughly 0–7 natural-log units, at which point
+  huber_slope=1.0 correctly treats residuals > ~1 log-unit as outliers while
+  retaining full L2 learning for the majority of well-fitted rows.
+
+  Expected outcome: improvement over exp_001 (especially for CY5 and Williamson
+  where fit failures are most common) and complementary benefit to the log
+  target transform tested in exp_005.
+
+features:
+  use_engineered: true
+  log_numeric: false
+
+xgb:
+  n_trials: 20
+  target_transform: log1p_nonnegative   # required: brings targets to ~0-7 log-unit scale
+  objective: reg:pseudohubererror
+  objective_params:
+    # huber_slope (delta): transition point between L2 and L1 regimes.
+    # Must be > typical residual std in the transformed space (~1.3 log-units
+    # here).  At delta=2.0 the L2 regime covers ~±2 log-units, capturing the
+    # bulk of well-fitted rows while L1 treatment applies only to clear outliers.
+    # Setting it too small (e.g. 1.0) puts all residuals in L1 territory,
+    # causing near-zero hessians and gradient-boosting divergence.
+    huber_slope: 2.0
+    # max_delta_step: caps the maximum leaf weight to prevent runaway updates
+    # when hessians are near zero (which happens for large residuals under
+    # pseudo Huber loss).  Value of 1 is a standard conservative setting.
+    max_delta_step: 1
+
+run:
+  sections: [baseline]

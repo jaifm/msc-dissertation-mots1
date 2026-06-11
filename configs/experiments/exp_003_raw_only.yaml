@@ -1,0 +1,14 @@
+defaults: base
+id: exp_003_raw_only
+description: "Raw features only (no engineered features)."
+hypothesis: "Engineered features provide measurable gain; raw features underperform."
+
+features:
+  use_engineered: false
+  log_numeric: false
+
+xgb:
+  n_trials: 10
+
+run:
+  sections: [baseline]

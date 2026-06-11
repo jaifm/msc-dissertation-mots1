@@ -1,0 +1,25 @@
+defaults: base
+id: exp_005_log_target
+description: >
+  Engineered features with log1p target transform, 10 Optuna trials.
+  Isolates the effect of applying a log transform to the rheology parameter
+  targets (eta_0, lambda, K etc.), which are right-skewed distributions with
+  long tails.
+hypothesis: >
+  Rheology parameters are right-skewed: a small number of formulations produce
+  very high zero-shear viscosities.  Without a target transform, XGBoost's
+  squared-error objective over-weights these outliers and under-fits the
+  majority of formulations.  Applying log1p_nonnegative should reduce this
+  bias and lift test R² across most physics models, particularly those with
+  multi-scale targets such as CY5 (eta_0 spans several orders of magnitude).
+
+features:
+  use_engineered: true
+  log_numeric: false
+
+xgb:
+  n_trials: 10
+  target_transform: log1p_nonnegative  # shift-then-log1p applied to each target
+
+run:
+  sections: [baseline]

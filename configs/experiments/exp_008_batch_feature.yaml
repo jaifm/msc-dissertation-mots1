@@ -1,0 +1,42 @@
+defaults: base
+id: exp_008_batch_feature
+description: >
+  Engineered features plus Source_Batch as an explicit categorical input,
+  20 Optuna trials.  Tests whether batch identity (Batch_1 vs Batch_2)
+  carries predictive information beyond what composition features encode.
+hypothesis: >
+  If the two data collection batches differ systematically in instrument
+  calibration, temperature, mixing protocol, or other uncontrolled factors,
+  the model could exploit batch identity as a proxy for those unmeasured
+  variables.  A meaningful R² improvement over exp_001 would indicate that
+  batch effects are a significant driver of rheology variance in this dataset —
+  an important finding because it would mean the model relies on information
+  unavailable at deployment (the batch of a new formulation is unknown).
+  Conversely, no improvement confirms that composition features capture the
+  relevant physics without needing batch as a crutch.
+  Source_Batch is encoded as a one-hot feature (Batch_1 / Batch_2) by the
+  existing ColumnTransformer pipeline; no code change is required.
+
+# Add Source_Batch to the composition feature set.  This list replaces the
+# base list entirely (YAML lists do not merge, they override), so all
+# original composition columns must be included alongside the new one.
+data:
+  composition_cols:
+    - Dispersent_Type
+    - Solid_Content_pct
+    - Solid_Additive_pct
+    - NMC_pct
+    - C65_pct
+    - KS6L_pct
+    - PVDF_pct
+    - Source_Batch       # NEW: batch identity as a one-hot categorical feature
+
+features:
+  use_engineered: true
+  log_numeric: false
+
+xgb:
+  n_trials: 20
+
+run:
+  sections: [baseline]
