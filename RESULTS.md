@@ -181,6 +181,14 @@ Best oracle R²(log) = 0.757 (cy5) vs 0.753 baseline — the 12-feature
 engineered set adds ~nothing under the chemistry split.  Tree students
 already capture what those features encode.
 
+### exp_039 — No-augmentation control under the chemistry split
+
+R²(log) = 0.732 (oracle irrelevant at n_aug=0) vs 0.753 augmented
+(exp_035).  Unlike the random split — where augmentation added nothing at
+the measured shears (exp_030 ≡ exp_033) — augmentation is worth +0.021
+under strict hold-out: with no recipe overlap to lean on, the densified
+curve signal helps slightly even in-range.
+
 ### exp_040 — Monotone shear-thinning constraint (honest negative + trade-off)
 
 XGBoost student constrained non-increasing in log_gamma (shear-thinning
