@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+.claude
+
+# Local run logs (use `2>&1 | tee run_log_<name>.txt` freely; never commit)
+run_log*.txt
+
+# Results artefacts (don't commit per-run outputs)
+data/processed/xgboost_experiments/*/
+!data/processed/xgboost_experiments/.gitkeep
+
+# Optuna studies, MLflow
+mlruns/
+optuna_studies/
