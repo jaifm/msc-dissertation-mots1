@@ -1,0 +1,50 @@
+defaults: base
+
+id: exp_044_pa_ridge_student
+description: >
+  Varying-coefficient ridge student on the physics-augmented long format
+  under the chemistry-standardised split.  The design matrix is
+  composition + log_gamma + every composition-by-log_gamma product, so
+  with the log1p target the model is a power-law surface whose
+  consistency and flow-index are linear in composition (varying-
+  coefficient model, Hastie & Tibshirani 1993, JRSS-B).  Motivated by
+  the tl_chemistry study, where a per-shear ridge in log space reached
+  pooled R-squared(log)=0.811 vs 0.753 for the XGBoost student: trees
+  predict constants outside the training composition hull, while
+  log-viscosity varies near-linearly with solids loading (Mooney 1951
+  -type concentration laws), so a linear-in-log-space student
+  extrapolates correctly AND remains queryable at any shear rate.
+
+hypothesis: >
+  The ridge student should match or beat the per-shear ridge's 0.811
+  pooled R-squared(log) while retaining the any-shear deployment
+  capability the per-shear formulation lacks.  If confirmed, this
+  becomes the headline model: better strict hold-out accuracy than the
+  XGBoost student (0.753) with a fraction of the complexity.
+
+paths:
+  splits: data/processed/splits_chemistry/default
+  train_csv: train.csv
+  test_csv: test.csv
+
+features:
+  use_engineered: false
+  log_numeric: false
+
+physics:
+  models: []
+
+xgb:
+  n_trials: 0
+
+physics_augmented:
+  models: [power_law, constrained_cy, cy5, sisko, williamson]
+  learners: [ridge]
+  n_aug_points: 30
+  shear_range: [0.1, 1000.0]
+  log_uniform_gamma: true
+  measured_weight: 1.0
+  target_transform: log1p_nonnegative
+
+run:
+  sections: [physics_augmented]

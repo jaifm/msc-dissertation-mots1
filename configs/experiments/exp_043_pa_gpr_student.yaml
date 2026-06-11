@@ -1,0 +1,46 @@
+defaults: base
+
+id: exp_043_pa_gpr_student
+description: >
+  GPR student on the physics-augmented long-format dataset under the
+  chemistry-standardised split, run alongside the XGBoost student on the
+  same two strongest oracles.  A GPR trained on (composition, log gamma)
+  pairs provides a posterior predictive variance over the full viscosity
+  curve — native uncertainty quantification the XGBoost student lacks —
+  at the cost of cubic training complexity in the ~4,400-row augmented
+  set (Rasmussen & Williams 2006, ch. 2).
+
+hypothesis: >
+  exp_037 showed GPR beats XGBoost for parameter prediction in the
+  interpolation regime but both collapse under extrapolation.  On the
+  long-format task the smooth log-viscosity surface should suit the
+  Matern-2.5 kernel; if GPR matches XGBoost here, its calibrated
+  curve-level variance makes it the preferable deployment model for
+  measure-first prioritisation.
+
+paths:
+  splits: data/processed/splits_chemistry/default
+  train_csv: train.csv
+  test_csv: test.csv
+
+features:
+  use_engineered: false
+  log_numeric: false
+
+physics:
+  models: []
+
+xgb:
+  n_trials: 0
+
+physics_augmented:
+  models: [power_law, cy5]
+  learners: [xgb, gpr]
+  n_aug_points: 30
+  shear_range: [0.1, 1000.0]
+  log_uniform_gamma: true
+  measured_weight: 1.0
+  target_transform: log1p_nonnegative
+
+run:
+  sections: [physics_augmented]
