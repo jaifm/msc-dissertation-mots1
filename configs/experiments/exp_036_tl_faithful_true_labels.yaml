@@ -1,0 +1,142 @@
+defaults: base
+
+id: exp_036_tl_faithful_true_labels
+description: >
+  Most faithful possible reproduction of El-Dalahmeh et al.'s headline
+  results, implementing the oracle-chain interpretation: measured η(10)
+  values are used directly as the chaining feature during training of the
+  η(1) and η(100) models.  At test time the η(10) model's predictions are
+  used as the chain input (no labels available).
+
+  This is the strongest form of chaining leakage and the most plausible
+  explanation for the paper's η(1) R² ≈ 0.85 — if they used measured η(10)
+  during training (which the paper does not explicitly exclude), the η(1)
+  model would learn the true label correlation during fit and then exploit
+  the (still-accurate) η(10) predictions at test time.
+
+  Four variants are compared:
+    1. true_labels_tl     -- oracle chain + TL fine-tuning (best case)
+    2. true_labels_no_tl  -- oracle chain, no fine-tuning (Batch_1 only)
+    3. insample_tl        -- in-sample chain + TL (our previous exp_027 best)
+    4. oof_tl             -- OOF chain + TL (honest upper bound)
+
+hypothesis: >
+  The oracle-chain variant (use_true_labels=True) should substantially
+  outperform the in-sample chain on η(1) and η(100) R², potentially
+  approaching the paper's reported figures (η(1)≈0.85, η(10)/η(100)≈0.92).
+
+  The OOF variant should fall between in-sample and oracle, quantifying
+  the leakage contribution of each chaining strategy.
+
+  OUTCOME (raw Pa·s R², K-fold on full Batch_2):
+    true_labels_tl    : η(1)=0.520, η(10)=0.810, η(100)=0.834, mean=0.721
+    true_labels_no_tl : η(1)=-2.94, η(10)=0.121, η(100)=0.314, mean=-0.836
+    insample_tl       : η(1)=0.751, η(10)=0.810, η(100)=0.881, mean=0.814
+    oof_tl            : η(1)=0.591, η(10)=0.810, η(100)=0.862, mean=0.754
+
+  KEY FINDING: The oracle chain (use_true_labels=True) is WORSE than the
+  in-sample chain on η(1) R² (0.520 vs 0.751).  This is counter-intuitive
+  but mechanistically sound: training with perfect measured η(10) creates a
+  train-test distribution mismatch at inference time, where the model receives
+  noisy predicted η(10) (R²≈0.81) instead.  The in-sample chain is paradoxically
+  more self-consistent — both training and test use noisy model predictions.
+
+  The paper's η(1) R² ≈ 0.85 remains unreproducible under every chaining
+  interpretation tested:
+    - Oracle chain (most aggressive label leakage): 0.520
+    - In-sample chain (paper-faithful): 0.751
+    - OOF chain (honest): 0.591
+  The 0.10 gap to the paper's claim is irreducible by chaining strategy
+  changes alone.  The no-TL oracle variant is catastrophically bad (-2.94)
+  because the Batch_1-only model cannot predict Batch_2 η(10) accurately,
+  and the mismatch between oracle training features and noisy test features
+  completely destroys generalization.
+
+physics:
+  models: []
+
+xgb:
+  n_trials: 0
+
+tl:
+  models: [lightgbm]
+  source_batch: Batch_1
+  target_batch: Batch_2
+  k_folds: 5
+
+  # Paper Section 3.1: K-fold across the full target batch.
+  kfold_scope: full_target
+
+  # No log1p transform — paper default (raw Pa·s).
+  # Using raw targets gives results in the same space as the paper's reported
+  # R² values (which show η(1)≈0.85, η(10)/η(100)≈0.92 in raw Pa·s R²).
+  target_transform: none
+
+  conformal:
+    alphas: []
+    calib_fraction: 0.5
+
+  # Conservative LightGBM hyperparameters matching the paper's XGBoost spec.
+  lightgbm:
+    n_base_trees: 500
+    n_finetune_trees: 100
+    learning_rate_base: 0.10
+    learning_rate_finetune: 0.05
+    num_leaves: 8
+    max_depth: 3
+    min_data_in_leaf: 15
+    feature_fraction: 0.9
+    bagging_fraction: 0.9
+    bagging_freq: 1
+    lambda_l2: 0.0
+
+  variants:
+    # ---- ORACLE CHAIN + TL: most faithful reproduction attempt ----
+    # Measured η(10) used as chaining feature during training.
+    # This is the most favourable interpretation of the paper's method.
+    - id: true_labels_tl
+      transfer: true
+      finetune: true
+      chained: true
+      use_oof: false
+      use_true_labels: true
+      group_aware_split: false
+      active: true
+
+    # ---- ORACLE CHAIN, NO TL ----
+    # Train only on Batch_1 with measured η(10) chaining.
+    # Tests whether TL fine-tuning adds anything when the chain is ideal.
+    - id: true_labels_no_tl
+      transfer: true
+      finetune: false
+      chained: true
+      use_oof: false
+      use_true_labels: true
+      group_aware_split: false
+      active: true
+
+    # ---- IN-SAMPLE CHAIN + TL ----
+    # Current paper-faithful approach from exp_027.
+    # Comparison baseline to isolate the true_labels contribution.
+    - id: insample_tl
+      transfer: true
+      finetune: true
+      chained: true
+      use_oof: false
+      use_true_labels: false
+      group_aware_split: false
+      active: true
+
+    # ---- OOF CHAIN + TL ----
+    # Honest upper bound on what TL can achieve with a clean chain.
+    - id: oof_tl
+      transfer: true
+      finetune: true
+      chained: true
+      use_oof: true
+      use_true_labels: false
+      group_aware_split: false
+      active: true
+
+run:
+  sections: [tl_baseline]

@@ -1,0 +1,104 @@
+defaults: base
+
+id: exp_027_tl_replication
+description: >
+  Phase 1 replication of El-Dalahmeh et al. (Energy and AI 22, 100661, 2025)
+  "Predictive modelling of slurry viscosity using transfer learning".
+  Trains LightGBM in continuation mode plus OLS and Ridge baselines on the
+  paper's four input features (Formulation, Dispersent_Type,
+  Solid_Content_pct, Solid_Dispersant_pct) with the chained
+  η(10)→η(1)/η(100) prediction strategy described in their Section 5.
+  Reports R²/MAE/RMSE per shear rate and split-conformal prediction
+  intervals at 90% and 95%.
+
+hypothesis: >
+  Faithful replication of the published protocol should land within noise of
+  their reported headline numbers (Table 4 / Figures 14–18).  This is a
+  prerequisite for the Phase 2 leakage audit (group-aware splits, out-of-
+  fold chaining, no-chain direct prediction) and for the Phase 3 comparison
+  against the project's physics-informed pipeline.
+
+  Five variants are run together so the matrix appears in one results
+  directory: the paper-faithful chain, an out-of-fold chain, a direct (no-
+  chain) variant, a no-transfer-learning negative control, and a group-
+  aware-split sanity check.  Variant names are stored in the per-target
+  CSV so downstream notebook cells can compare them directly.
+
+# Inherit features.use_engineered = true from base, but the TL section
+# never reads the engineered features — it builds its own four-input subset
+# from raw composition columns.  We do NOT need to override features here.
+
+physics:
+  # No physics-fit step is required for a pure TL run; the runner skips
+  # build_all_physics_datasets when only the TL section is active.
+  models: []
+
+xgb:
+  n_trials: 0           # not used; included only to satisfy validation
+
+tl:
+  models: [lightgbm, ols, ridge]
+  source_batch: Batch_1
+  target_batch: Batch_2
+  test_fraction: 0.20
+  k_folds: 5
+  conformal:
+    alphas: [0.10, 0.05]
+    calib_fraction: 0.5
+  lightgbm:
+    n_base_trees: 500
+    n_finetune_trees: 100
+    learning_rate_base: 0.10
+    learning_rate_finetune: 0.05
+  variants:
+    # ---- Phase 1: paper-faithful replication ----
+    - id: tl_paper_chained
+      transfer: true
+      chained: true
+      use_oof: false
+      group_aware_split: false
+      active: true
+
+    # ---- Phase 2: leakage audit ----
+    # (a) Out-of-fold chaining: replaces in-sample η(10) with OOF predictions
+    #     during fitting of the η(1)/η(100) models.  The R² gap to
+    #     tl_paper_chained is the chained-prediction leakage estimate.
+    - id: tl_paper_chained_oof
+      transfer: true
+      chained: true
+      use_oof: true
+      group_aware_split: false
+      active: true
+
+    # (b) Direct (no chaining) prediction.  The "honest baseline" — what TL
+    #     achieves on η(1)/η(100) when the η(10) crutch is removed entirely.
+    - id: tl_paper_direct
+      transfer: true
+      chained: false
+      use_oof: false
+      group_aware_split: false
+      active: true
+
+    # ---- No-transfer negative control ----
+    # Trains only on Batch_2 (target) without any pre-training on Batch_1.
+    # Difference vs tl_paper_chained is the gross gain attributed to TL.
+    - id: no_tl_chained
+      transfer: false
+      chained: true
+      use_oof: false
+      group_aware_split: false
+      active: true
+
+    # ---- Group-aware-split sanity check ----
+    # Splits the target batch on Composite_Mix_ID rather than rows, so no
+    # formulation appears in both inner-train and inner-test.  The R² gap
+    # to tl_paper_chained_oof is the replicate-leakage estimate.
+    - id: tl_paper_chained_groups
+      transfer: true
+      chained: true
+      use_oof: true
+      group_aware_split: true
+      active: true
+
+run:
+  sections: [tl_baseline]

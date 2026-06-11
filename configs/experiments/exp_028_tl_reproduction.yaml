@@ -1,0 +1,133 @@
+defaults: base
+
+id: exp_028_tl_reproduction
+description: >
+  Targeted attempt to reproduce El-Dalahmeh et al.'s headline LightGBM TL
+  numbers (R²≈0.85 at η(1), ≈0.92 at η(10) and η(100)).  Differs from
+  exp_027 (faithful replication under stated protocol) by enabling four
+  specific knobs that, individually or jointly, are the most likely
+  explanations for the gap between exp_027's results and the paper's:
+    1. K-fold across the full Batch_2 (paper Section 3.1) rather than an
+       outer 80/20 + inner K-fold.
+    2. log1p target transform — almost certainly applied by the paper
+       implicitly given the heavy right tail at η(1).
+    3. Conservative LightGBM hyperparameters more in line with the paper's
+       XGBoost regularisation style (max_depth=3, num_leaves=8,
+       min_data_in_leaf=15).
+    4. A new variant ``paper_no_tl_baseline`` that captures their actual
+       no-TL reference (Train B1 → Predict B2, no fine-tuning) — the
+       strawman against which their TL gains were measured.
+
+hypothesis: >
+  Enabling all four knobs should close the gap to the paper's reported
+  figures (R²≈0.85 at η(1), ≈0.92 at η(10)/η(100)).
+
+  OUTCOME: The gap persisted — paper_tl_chained R²=0.638, well below
+  the paper's claims.  More importantly, paper_tl_chained and
+  paper_no_tl_baseline produced identical results (R²=0.638), meaning
+  TL fine-tuning made no measurable difference.  batch2_only_chained
+  (train on Batch_2 alone, no pretrain) achieved R²=0.567 — lower, but
+  within the noise of the TL variants.  paper_tl_chained_oof (OOF,
+  no chaining leakage) scored R²=0.589, lower than the in-sample chain,
+  quantifying the in-sample chaining inflation.
+
+  KEY AUDIT FINDINGS (from exp_027 group-aware variant):
+    - In-sample chaining inflates η(1) R² from 0.49 → 0.64.
+    - Recipe-level leakage (same Composite_Mix_ID in train and test)
+      inflates overall R² from 0.599 → 0.722 (+0.12).
+    - Transfer learning provides negligible benefit over training on
+      Batch_2 alone when the comparison is made honestly.
+    - The paper's headline numbers (≥0.85) are not reproducible under
+      any honest protocol attempted here.
+
+physics:
+  models: []
+
+xgb:
+  n_trials: 0
+
+tl:
+  models: [lightgbm]
+  source_batch: Batch_1
+  target_batch: Batch_2
+  k_folds: 5
+
+  # --- Knob 1: K-fold scope ---
+  # Paper Section 3.1: "K-fold cross-validation on the target batch".
+  kfold_scope: full_target
+
+  # --- Knob 2: target transform ---
+  # log1p is the smallest defensible transform that handles η(1)'s heavy
+  # right tail; the paper does not document this step but it is the most
+  # parsimonious explanation for their R² at η(1).
+  target_transform: log1p_nonnegative
+
+  conformal:
+    alphas: [0.10, 0.05]
+    calib_fraction: 0.5
+
+  # --- Knob 3: conservative LightGBM hyperparameters ---
+  # Paper specifies only learning rates and tree counts.  These match the
+  # spirit of their XGBoost spec (max_depth=3, modest sub/colsample, etc.)
+  # which is the only concrete configuration they give for tree learners.
+  lightgbm:
+    n_base_trees: 500
+    n_finetune_trees: 100
+    learning_rate_base: 0.10
+    learning_rate_finetune: 0.05
+    num_leaves: 8
+    max_depth: 3
+    min_data_in_leaf: 15
+    feature_fraction: 0.9
+    bagging_fraction: 0.9
+    bagging_freq: 1
+    lambda_l2: 0.0
+
+  variants:
+    # ---- Headline reproduction: paper's published TL configuration ----
+    - id: paper_tl_chained
+      transfer: true
+      finetune: true
+      chained: true
+      use_oof: false             # in-sample chaining (paper-faithful)
+      group_aware_split: false
+      active: true
+
+    # ---- Paper's actual no-TL baseline ----
+    # Train B1, predict B2 without any fine-tuning.  This is what Fig. 28
+    # calls "Train B1 → Predict B2 (no TL)".  The strawman that makes their
+    # TL improvement look maximal — included here so the audit can quantify
+    # how much of their reported lift comes from comparison framing.
+    - id: paper_no_tl_baseline
+      transfer: true
+      finetune: false
+      chained: true
+      use_oof: false
+      group_aware_split: false
+      active: true
+
+    # ---- Sensible no-TL reference ----
+    # Train on Batch_2 fold only, no pretrain.  A fairer comparison than
+    # the paper's no-TL because the model actually sees Batch_2 data.
+    - id: batch2_only_chained
+      transfer: false
+      finetune: true
+      chained: true
+      use_oof: false
+      group_aware_split: false
+      active: true
+
+    # ---- Honest TL chain (no chaining leakage) ----
+    # Same as paper_tl_chained but with OOF chaining; gives the upper bound
+    # on what TL can achieve when the chained pipeline is implemented
+    # without train-test feature mismatch.
+    - id: paper_tl_chained_oof
+      transfer: true
+      finetune: true
+      chained: true
+      use_oof: true
+      group_aware_split: false
+      active: true
+
+run:
+  sections: [tl_baseline]
