@@ -1,0 +1,47 @@
+defaults: base
+
+id: exp_040_pa_monotone_shear
+description: >
+  exp_035 (chemistry-standardised physics-augmented headline) with the
+  XGBoost student constrained to be monotonically non-increasing in
+  log_gamma.  Battery slurries are shear-thinning across the modelled
+  0.1-1000 1/s range, so any predicted viscosity that rises with shear
+  rate is a model artefact; XGBoost's native monotone_constraints encodes
+  the prior directly (theory-guided ML; Karpatne et al. 2017, IEEE TKDE).
+
+hypothesis: >
+  The constraint cannot add information at the three measured shears, so
+  in-range R-squared should be unchanged or marginally better.  The gain
+  is expected in curve shape: the oracle-curve evaluation showed the
+  unconstrained model collapses below gamma=1 (R-squared 0.456 in the
+  0.1-1 band), where rising-viscosity artefacts are easiest to produce.
+  Enforcing monotonicity should remove that failure mode at zero data
+  cost.
+
+paths:
+  splits: data/processed/splits_chemistry/default
+  train_csv: train.csv
+  test_csv: test.csv
+
+features:
+  use_engineered: false
+  log_numeric: false
+
+physics:
+  models: []
+
+xgb:
+  n_trials: 0
+
+physics_augmented:
+  models: [power_law, constrained_cy, cy5, sisko, williamson]
+  learners: [xgb]
+  n_aug_points: 30
+  shear_range: [0.1, 1000.0]
+  log_uniform_gamma: true
+  measured_weight: 1.0
+  target_transform: log1p_nonnegative
+  monotone_shear: true
+
+run:
+  sections: [physics_augmented]

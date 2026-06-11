@@ -1,0 +1,49 @@
+defaults: base
+
+id: exp_041_pa_crowding_feature
+description: >
+  exp_035 (chemistry-standardised physics-augmented headline) plus a
+  single targeted feature: the Maron-Pierce crowding term
+  (1 - phi/phi_max)^-2 computed from Solid_Content_pct with phi_max = 82
+  wt% (just above the highest observed loading, 77 wt%).  Concentrated
+  suspension rheology diverges as solids approach maximum packing
+  (Krieger & Dougherty 1959, Trans. Soc. Rheol.; Maron & Pierce 1956,
+  J. Colloid Sci.), a non-linearity the raw wt% column cannot express
+  over its narrow 69-77 observed range.
+
+hypothesis: >
+  exp_038 showed the full 12-feature engineered set adds ~nothing
+  (+0.004 R-squared(log)) under the chemistry split, suggesting most
+  engineered features duplicate signal XGBoost finds anyway.  The
+  crowding term is different in kind: it injects a divergence shape that
+  no monotone tree transform of the raw column reproduces over so narrow
+  a range.  Expected effect concentrates on high-solid-content test
+  recipes.
+
+paths:
+  splits: data/processed/splits_chemistry/default
+  train_csv: train.csv
+  test_csv: test.csv
+
+features:
+  use_engineered: false
+  log_numeric: false
+  crowding_phi_max: 82.0
+
+physics:
+  models: []
+
+xgb:
+  n_trials: 0
+
+physics_augmented:
+  models: [power_law, constrained_cy, cy5, sisko, williamson]
+  learners: [xgb]
+  n_aug_points: 30
+  shear_range: [0.1, 1000.0]
+  log_uniform_gamma: true
+  measured_weight: 1.0
+  target_transform: log1p_nonnegative
+
+run:
+  sections: [physics_augmented]

@@ -1,0 +1,42 @@
+defaults: base
+
+id: exp_042_pa_monotone_crowding
+description: >
+  Combination of exp_040 (monotone-in-shear constraint) and exp_041
+  (Maron-Pierce crowding feature) on the chemistry-standardised split.
+  Tests whether the two physics priors are additive.
+
+hypothesis: >
+  The two priors act on orthogonal axes — monotonicity constrains the
+  shear-rate direction, crowding enriches the composition direction — so
+  their effects should be approximately additive if both help
+  individually.
+
+paths:
+  splits: data/processed/splits_chemistry/default
+  train_csv: train.csv
+  test_csv: test.csv
+
+features:
+  use_engineered: false
+  log_numeric: false
+  crowding_phi_max: 82.0
+
+physics:
+  models: []
+
+xgb:
+  n_trials: 0
+
+physics_augmented:
+  models: [power_law, constrained_cy, cy5, sisko, williamson]
+  learners: [xgb]
+  n_aug_points: 30
+  shear_range: [0.1, 1000.0]
+  log_uniform_gamma: true
+  measured_weight: 1.0
+  target_transform: log1p_nonnegative
+  monotone_shear: true
+
+run:
+  sections: [physics_augmented]
