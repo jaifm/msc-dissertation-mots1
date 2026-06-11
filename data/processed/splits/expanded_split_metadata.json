@@ -1,0 +1,8 @@
+{
+  "train_rows": 136,
+  "test_rows": 42,
+  "train_groups": 54,
+  "test_groups": 14,
+  "seed": 42,
+  "test_size": 0.2
+}
