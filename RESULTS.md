@@ -24,7 +24,7 @@ All headline claims in the dissertation use R²(log).
 
 | Model | Experiment / study | Pooled R²(log) | Any-shear capable? |
 |---|---|---|---|
-| **Physics-augmented ridge (varying-coefficient)** | exp_044 | **0.802** | **yes** |
+| **Physics-augmented ridge (varying-coefficient)** | exp_044 | **0.774** | **yes** |
 | Per-shear ridge, 4 paper inputs | tl_chemistry | 0.811 | no |
 | Physics-augmented XGBoost | exp_035 | 0.753 | yes |
 | Physics-augmented GPR | exp_043 | 0.752 | yes |
@@ -108,7 +108,7 @@ shear-blind).  CSV: `tl_chemistry_results.csv`.
 | pooled_lightgbm (no TL) | 0.344 | 0.531 | 0.677 | 0.625 |
 | ridge (per-shear) | 0.657 | 0.817 | 0.827 | **0.811** |
 | physics-augmented XGBoost (exp_035) | — | — | — | 0.753 |
-| physics-augmented ridge (exp_044) | — | — | — | **0.802** |
+| physics-augmented ridge (exp_044) | — | — | — | **0.774** |
 
 Key findings:
 - TL fine-tuning *hurts* under the chemistry split (0.574 vs 0.625 no-TL):
@@ -119,7 +119,7 @@ Key findings:
   is near-linear in the four inputs, and linear models extrapolate outside
   the training composition hull where trees cannot.  This motivated the
   exp_044 varying-coefficient ridge student, which keeps the linear
-  extrapolation *and* the any-shear capability (0.802).
+  extrapolation *and* the any-shear capability (0.774).
 
 ---
 
@@ -231,17 +231,18 @@ curve-level predictive variance, but does not approach the ridge student.
 
 Ridge on [composition, log γ̇, composition × log γ̇] in log1p space — a
 power-law surface whose consistency and flow index are linear in
-composition.  α selected by efficient LOO-CV.
+composition.  α selected by chemistry-level leave-one-out CV (each fold
+holds out all rows — measured and augmented — of one recipe).
 
 | Oracle | R²(log) | R²(raw) |
 |---|---|---|
-| power_law | **0.802** | 0.385 |
-| constrained_cy | 0.802 | 0.368 |
-| sisko | 0.796 | 0.391 |
-| cy5 | 0.788 | 0.358 |
-| williamson | 0.785 | 0.356 |
+| sisko | **0.774** | 0.360 |
+| cy5 | 0.766 | 0.331 |
+| constrained_cy | 0.765 | 0.319 |
+| power_law | 0.764 | 0.333 |
+| williamson | 0.762 | 0.329 |
 
-+0.049 R²(log) over the XGBoost student on identical test rows.  Why it
++0.021 R²(log) over the XGBoost student on identical test rows.  Why it
 works: trees predict constants outside the training composition hull —
 exactly the strict-split failure mode — while log-viscosity varies
 near-linearly with composition over the observed range, so a linear
@@ -294,13 +295,13 @@ best oracle per fold, R²(log).
 |---|---|---|---|---|---|---|
 | XGB | raw | 0.741 | −0.422 | 3.80 | −22.3 | — |
 | XGB | aug | 0.747 | 0.037 | 2.38 | −13.0 | 48/67 |
-| Ridge | raw | 0.689 | 0.147 | 1.52 | −6.9 | — |
-| Ridge | aug | 0.719 | 0.228 | 1.42 | −7.1 | 49/67 |
+| Ridge | raw | 0.697 | 0.188 | 1.48 | −8.0 | — |
+| Ridge | aug | 0.682 | 0.257 | 1.41 | −7.9 | 52/67 |
 
-- XGB has the better median (0.747 vs 0.719): with 66 of 67 recipes in
+- XGB has the better median (0.747 vs 0.682): with 66 of 67 recipes in
   training, most folds are interpolation, where local tree fitting is
   sharp.
-- Ridge has far better tails (mean +0.23 vs +0.04; worst fold −7 vs −13):
+- Ridge has far better tails (mean +0.26 vs +0.04; worst fold −8 vs −13):
   the same extrapolation robustness that wins the strict hold-out.
 - F1 recipes (well-sampled): median R²(log) ≈ 0.74–0.82 for both.
   F2/F3 recipes (sparse): negative R² regardless of student or
@@ -343,16 +344,17 @@ curve-shape recovery only.  CSVs: `oracle_curve_bands*.csv`
 
 | Shear band | XGB | XGB + monotone | Ridge |
 |---|---|---|---|
-| 0.1–1 (below measured) | 0.456 | 0.355 | **0.651** |
-| 1–10 (measured) | 0.554 | 0.526 | **0.722** |
-| 10–100 (measured) | 0.656 | 0.726 | **0.811** |
-| 100–1000 (above measured) | 0.612 | 0.722 | **0.726** |
+| 0.1–1 (below measured) | 0.456 | 0.355 | **0.596** |
+| 1–10 (measured) | 0.554 | 0.526 | **0.677** |
+| 10–100 (measured) | 0.656 | 0.726 | **0.736** |
+| 100–1000 (above measured) | 0.612 | **0.722** | 0.568 |
 
 - The unconstrained tree collapses below γ̇=1 where the curve is steepest.
 - The monotone prior shifts error from high-shear to low-shear bands.
-- The ridge student dominates **every band** — including +0.20 below the
-  measured range — because the power-law surface extrapolates log-linearly
-  in log γ̇ by construction.
+- The ridge student leads **three of four bands** — including +0.14 below
+  the measured range — because the power-law surface extrapolates
+  log-linearly in log γ̇ by construction; only in the highest extrapolation
+  band does the monotone-constrained tree (0.722) overtake it (0.568).
 
 ### GPR LOO (parameter space, old framework — exp_026)
 
@@ -373,9 +375,9 @@ XGB student except where noted; R²(log).
 |---|---|---|---|
 | Fixed split (random) | 0.815 | 0.815 | n_test=126; recipe leakage inflates |
 | Strict hold-out — XGB | — | 0.753 | n_test=132 |
-| Strict hold-out — **ridge** | — | **0.802** | n_test=132 |
+| Strict hold-out — **ridge** | — | **0.774** | n_test=132 |
 | LOO median (67 folds) — XGB | 0.741 | 0.747 | |
-| LOO median (67 folds) — ridge | 0.689 | 0.719 | better mean/tails |
+| LOO median (67 folds) — ridge | 0.697 | 0.682 | better mean/tails |
 | Batch_1→2 | 0.698 | 0.707 | 37 unseen recipes |
 | Batch_2→1 | 0.617 | 0.614 | 18 unseen recipes |
 
@@ -423,7 +425,7 @@ Paradigm A must infer K and n as latent variables from composition —
 unreliable outside the training distribution.  Paradigm B learns
 log-viscosity directly from per-row local fits and never attempts global
 parameter inference.  (With the exp_044 ridge student, Paradigm B's
-extrapolation drop shrinks further: 0.815 → 0.802.)
+extrapolation drop shrinks further: 0.815 → 0.774.)
 
 ---
 
@@ -443,9 +445,9 @@ performance:
    (exp_030 ≡ exp_033).
 2. **A student with the right inductive bias** (the varying-coefficient
    ridge: log-linear in composition and log γ̇) extrapolates where trees
-   cannot, lifting the strict hold-out headline from 0.753 to **0.802**,
-   dominating every curve-shape band, and yielding near-nominal conformal
-   coverage.
+   cannot, lifting the strict hold-out headline from 0.753 to **0.774**,
+   leading curve-shape recovery across the measured window and below, and
+   yielding near-nominal conformal coverage.
 
 Solving the remaining gap requires data: even one measurement of a new
 recipe (few-shot k=1) is worth more than any modelling change tested.

@@ -88,7 +88,7 @@ output file, so every published variant stays independently pinned.
 
 | Number | Source CSV | Regenerate with |
 |---|---|---|
-| Strict hold-out R²(log) 0.802 (ridge) | run dir of exp_044 | `python -m src.cli run --config exp_044_pa_ridge_student` |
+| Strict hold-out R²(log) 0.774 (ridge) | run dir of exp_044 | `python -m src.cli run --config exp_044_pa_ridge_student` |
 | Strict hold-out R²(log) 0.753 (XGB) | run dir of exp_035 | `python -m src.cli run --config exp_035_pa_chemistry_standardised` |
 | Held-out-shear table | `shear_holdout_results.csv`, `shear_holdout_ridge_results.csv` | `python -m src.cli study --name shear_holdout` / `shear_holdout_ridge` |
 | TL head-to-head | `tl_chemistry_results.csv` | `python -m src.cli study --name tl_chemistry` |

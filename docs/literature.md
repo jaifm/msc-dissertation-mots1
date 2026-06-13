@@ -119,17 +119,18 @@ model.
   *Regression-enhanced random forests.* arXiv:1904.10416.
 
 **Findings.** The strongest single improvement of the project:
-- Strict chemistry hold-out pooled R²(log): **0.802** vs 0.753 (XGBoost
+- Strict chemistry hold-out pooled R²(log): **0.774** vs 0.753 (XGBoost
   student), 0.752 (GPR student), 0.574 (transfer-learning LightGBM).
-- Held-out-shear study: the ridge student predicts an unseen shear well
-  *without any augmentation* (R²(log) 0.59/0.73/0.52 at γ̇ = 1/10/100)
+- Held-out-shear study: the ridge student predicts an unseen shear usably
+  *without any augmentation* (R²(log) 0.49/0.68/0.63 at γ̇ = 1/10/100)
   where XGBoost collapses (−0.15/−2.60/−2.02).  Augmentation still adds
-  at the extrapolated high shear (0.52 → 0.79).  This decomposes the
+  at the extrapolated high shear (0.63 → 0.78).  This decomposes the
   augmentation effect: it mainly *repairs the tree student's missing
   inductive bias along log γ̇*; a student with the right bias needs far
   less of it.
-- Curve-shape (oracle pseudo-gt) R² improves in every band, including
-  0.456 → 0.651 below the measured range.
+- Curve-shape (oracle pseudo-gt) R² improves in three of four bands,
+  including 0.456 → 0.596 below the measured range (the top extrapolation
+  band goes to the monotone-constrained tree).
 
 ## 5. Conformal prediction and Mondrian (per-shear) calibration
 
@@ -194,7 +195,7 @@ held-out rows.
 
 **Findings.** Under the chemistry split, TL LightGBM reaches pooled
 R²(log) 0.574 (no-TL pooled LightGBM 0.625) vs physics-augmented 0.753
-(XGBoost) / 0.802 (ridge) on the *same test rows*.  Two structural
+(XGBoost) / 0.774 (ridge) on the *same test rows*.  Two structural
 deficits: γ̇ is not an input (three shear-blind models; no prediction
 between/beyond measured shears), and the 4-input tree model inherits the
 extrapolation failure.  The paper's claimed R² ≈ 0.85–0.92 remained

@@ -96,7 +96,7 @@ Four literature-backed extensions were tested on identical splits:
    null result.
 3. **GPR student** (exp_043): matches XGBoost (0.752), adds curve-level
    predictive variance.
-4. **Varying-coefficient ridge student** (exp_044): **R²(log) = 0.802**
+4. **Varying-coefficient ridge student** (exp_044): **R²(log) = 0.774**
    — the new headline.  Motivated by the TL head-to-head study, where a
    per-shear ridge in log space outperformed every tree model: trees
    predict constants outside the training composition hull, while
@@ -105,7 +105,7 @@ Four literature-backed extensions were tested on identical splits:
    surface with composition-dependent consistency and flow index — so it
    extrapolates in composition *and* remains queryable at any shear.
    It also: predicts held-out shears without augmentation (the right
-   inductive bias built in), dominates every curve-shape band, and is
+   inductive bias built in), leads most curve-shape bands, and is
    the best-calibrated model under conformal evaluation.
 
 **Revised augmentation story.** Augmentation is structural for students
@@ -122,7 +122,7 @@ the train rows from Batch_2, identical held-out recipes):
 
 | Model (log1p target) | Pooled R²(log) | Any-shear? |
 |---|---|---|
-| Physics-augmented ridge (exp_044) | **0.802** | yes |
+| Physics-augmented ridge (exp_044) | **0.774** | yes |
 | Physics-augmented XGBoost (exp_035) | 0.753 | yes |
 | Physics-augmented GPR (exp_043) | 0.752 | yes |
 | Per-shear ridge (4 inputs) | 0.811 | **no** |
