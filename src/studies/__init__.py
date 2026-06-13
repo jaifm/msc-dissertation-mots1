@@ -56,8 +56,14 @@ _STUDY_MODULES: Dict[str, str] = {
     "fewshot_comparison": "src.studies.fewshot_comparison",
     "batch_comparison":   "src.studies.batch_comparison",
     "conformal":          "src.studies.conformal",
+    # Same module with the ridge student; separate YAMLs + output CSVs for
+    # the marginal and Mondrian (per-shear) conformal variants.
+    "conformal_ridge":          "src.studies.conformal",
+    "conformal_ridge_mondrian": "src.studies.conformal",
     "gpr_uq":             "src.studies.gpr_uq",
     "oracle_curve_eval":  "src.studies.oracle_curve_eval",
+    # Same module with the ridge student; separate YAML + output CSVs.
+    "oracle_curve_eval_ridge": "src.studies.oracle_curve_eval",
     "aug_sweep":          "src.studies.aug_sweep",
     "tl_chemistry":       "src.studies.tl_chemistry",
 }

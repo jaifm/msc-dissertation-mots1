@@ -1,0 +1,16 @@
+# Split-conformal prediction intervals on the physics-augmented varying-
+# coefficient ridge student (exp_044), chemistry split.  Mondrian variant:
+# one conformal radius per measured shear (group-conditional conformal),
+# which adapts the interval width to the per-shear error scale.  α for the
+# ridge student is selected by chemistry-level leave-one-out CV inside
+# fit_ridge (groups passed).
+base_experiment: exp_035_pa_chemistry_standardised
+learner: ridge
+oracle: power_law
+n_aug: 30
+seed: 42
+calib_fraction: 0.20
+alphas: [0.10, 0.05]
+mondrian: shear_rate
+out_csv: data/processed/xgboost_experiments/conformal_ridge_mondrian_results.csv
+detail_csv: data/processed/xgboost_experiments/conformal_ridge_mondrian_detail.csv

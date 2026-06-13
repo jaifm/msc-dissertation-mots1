@@ -144,6 +144,7 @@ def _run_oracle(oracle_key: str, eval_shears: np.ndarray, params: Dict[str, Any]
             target_transform="log1p_nonnegative",
             cfg=cfg,
             seed=cfg.seed,
+            groups=split.train_long["row_id"].to_numpy() if "row_id" in split.train_long.columns else None,
         )
         predict_pa_s = result.extra["predict_fn"]
 

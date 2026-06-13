@@ -168,6 +168,7 @@ def _run_variant(
             target_transform="log1p_nonnegative",
             cfg=cfg,
             seed=seed,
+            groups=train_long["row_id"].to_numpy() if "row_id" in train_long.columns else None,
         )
         y_pred_all = np.asarray(result.y_pred_test, float)
 

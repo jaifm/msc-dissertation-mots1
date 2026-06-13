@@ -167,6 +167,7 @@ def run(params: Dict[str, Any]) -> pd.DataFrame:
             measurement_shears=list(map(float, cfg.physics.viscosity_shears)),
             target_transform=pa.target_transform,
             cfg=cfg, seed=seed,
+            groups=split.train_long["row_id"].to_numpy() if "row_id" in split.train_long.columns else None,
         )
         predict_pa_s = fit_result.extra["predict_fn"]
 

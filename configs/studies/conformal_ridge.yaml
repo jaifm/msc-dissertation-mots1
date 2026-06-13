@@ -1,0 +1,16 @@
+# Split-conformal prediction intervals on the physics-augmented varying-
+# coefficient ridge student (exp_044), chemistry split.  Marginal variant:
+# one conformal radius across all measured shears (mondrian: none).  α is
+# selected by chemistry-level leave-one-out CV inside fit_ridge — the
+# `groups` array is passed so the correlated augmented rows of a recipe do
+# not inflate the CV score.
+base_experiment: exp_035_pa_chemistry_standardised
+learner: ridge
+oracle: power_law
+n_aug: 30
+seed: 42
+calib_fraction: 0.20
+alphas: [0.10, 0.05]
+mondrian: none
+out_csv: data/processed/xgboost_experiments/conformal_ridge_results.csv
+detail_csv: data/processed/xgboost_experiments/conformal_ridge_detail.csv

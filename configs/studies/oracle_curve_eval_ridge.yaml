@@ -1,0 +1,14 @@
+# Oracle-as-pseudo-ground-truth curve-shape evaluation with the varying-
+# coefficient ridge student (exp_044) on a dense shear grid.  Routes through
+# the shared physics-augmented learners; α is selected by chemistry-level
+# leave-one-out CV inside fit_ridge (groups passed).
+# CAVEAT: quantifies curve-shape recovery, not accuracy against measurement.
+base_experiment: exp_030_pa_log_target
+split_dir: data/processed/splits_chemistry/default
+learner: ridge
+oracle_models: [power_law, cy5]
+n_aug: 30
+n_eval_shears: 200
+shear_range: [0.1, 1000.0]
+out_csv: data/processed/xgboost_experiments/oracle_curve_eval_ridge.csv
+bands_csv: data/processed/xgboost_experiments/oracle_curve_bands_ridge.csv
