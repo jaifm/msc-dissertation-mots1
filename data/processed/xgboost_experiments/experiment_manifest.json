@@ -1,6 +1,52 @@
 {
   "runs": [
     {
+      "run_id": "exp_044_pa_ridge_student_20260613_143903",
+      "experiment_id": "exp_044_pa_ridge_student",
+      "description": "Varying-coefficient ridge student on the physics-augmented long format under the chemistry-standardised split.  The design matrix is composition + log_gamma + every composition-by-log_gamma product, so with the log1p target the model is a power-law surface whose consistency and flow-index are linear in composition (varying- coefficient model, Hastie & Tibshirani 1993, JRSS-B).  Motivated by the tl_chemistry study, where a per-shear ridge in log space reached pooled R-squared(log)=0.811 vs 0.753 for the XGBoost student: trees predict constants outside the training composition hull, while log-viscosity varies near-linearly with solids loading (Mooney 1951 -type concentration laws), so a linear-in-log-space student extrapolates correctly AND remains queryable at any shear rate.\n",
+      "hypothesis": "The ridge student should match or beat the per-shear ridge's 0.811 pooled R-squared(log) while retaining the any-shear deployment capability the per-shear formulation lacks.  If confirmed, this becomes the headline model: better strict hold-out accuracy than the XGBoost student (0.753) with a fraction of the complexity.\n",
+      "created_at_utc": "2026-06-13T14:39:03.409920+00:00",
+      "duration_seconds": 6.6,
+      "sections_run": [
+        "physics_augmented"
+      ],
+      "best": null,
+      "saved_files": [
+        "physics_augmented_model_summary.csv",
+        "physics_augmented_per_target.csv",
+        "physics_augmented_predictions.csv",
+        "physics_augmented_power_law_train_long.csv",
+        "physics_augmented_constrained_cy_train_long.csv",
+        "physics_augmented_cy5_train_long.csv",
+        "physics_augmented_sisko_train_long.csv",
+        "physics_augmented_williamson_train_long.csv"
+      ],
+      "notes": ""
+    },
+    {
+      "run_id": "exp_044_pa_ridge_student_20260613_140146",
+      "experiment_id": "exp_044_pa_ridge_student",
+      "description": "Varying-coefficient ridge student on the physics-augmented long format under the chemistry-standardised split.  The design matrix is composition + log_gamma + every composition-by-log_gamma product, so with the log1p target the model is a power-law surface whose consistency and flow-index are linear in composition (varying- coefficient model, Hastie & Tibshirani 1993, JRSS-B).  Motivated by the tl_chemistry study, where a per-shear ridge in log space reached pooled R-squared(log)=0.811 vs 0.753 for the XGBoost student: trees predict constants outside the training composition hull, while log-viscosity varies near-linearly with solids loading (Mooney 1951 -type concentration laws), so a linear-in-log-space student extrapolates correctly AND remains queryable at any shear rate.\n",
+      "hypothesis": "The ridge student should match or beat the per-shear ridge's 0.811 pooled R-squared(log) while retaining the any-shear deployment capability the per-shear formulation lacks.  If confirmed, this becomes the headline model: better strict hold-out accuracy than the XGBoost student (0.753) with a fraction of the complexity.\n",
+      "created_at_utc": "2026-06-13T14:01:46.534802+00:00",
+      "duration_seconds": 7.1,
+      "sections_run": [
+        "physics_augmented"
+      ],
+      "best": null,
+      "saved_files": [
+        "physics_augmented_model_summary.csv",
+        "physics_augmented_per_target.csv",
+        "physics_augmented_predictions.csv",
+        "physics_augmented_power_law_train_long.csv",
+        "physics_augmented_constrained_cy_train_long.csv",
+        "physics_augmented_cy5_train_long.csv",
+        "physics_augmented_sisko_train_long.csv",
+        "physics_augmented_williamson_train_long.csv"
+      ],
+      "notes": ""
+    },
+    {
       "run_id": "exp_043_pa_gpr_student_20260611_084051",
       "experiment_id": "exp_043_pa_gpr_student",
       "description": "GPR student on the physics-augmented long-format dataset under the chemistry-standardised split, run alongside the XGBoost student on the same two strongest oracles.  A GPR trained on (composition, log gamma) pairs provides a posterior predictive variance over the full viscosity curve \u2014 native uncertainty quantification the XGBoost student lacks \u2014 at the cost of cubic training complexity in the ~4,400-row augmented set (Rasmussen & Williams 2006, ch. 2).\n",
