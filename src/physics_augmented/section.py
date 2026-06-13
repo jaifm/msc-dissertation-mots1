@@ -127,6 +127,11 @@ def run_physics_augmented(
         w_train = weight_array(split.train_long)
         X_test = feature_matrix(split.test_long, split.feature_cols)
 
+        # Chemistry-level group labels for ridge α selection: every row
+        # (measured and augmented) inherits the Composite_Mix_ID of the
+        # source training chemistry so that LOO holds out full recipes.
+        groups_train = split.train_long["row_id"].to_numpy()
+
         for learner_name in learners:
             print(f"  -> Learner: {learner_name}")
             result = fit_learner(
@@ -140,6 +145,7 @@ def run_physics_augmented(
                 target_transform=pa_cfg.target_transform,
                 cfg=cfg,
                 seed=seed,
+                groups=groups_train,
             )
 
             variant_id = f"{physics_key}__{learner_name}"

@@ -468,6 +468,7 @@ def fit_ridge(
     target_transform: str = "none",
     cfg: Optional[Config] = None,
     seed: int = 42,
+    groups: Optional[np.ndarray] = None,
 ) -> FitResult:
     """Varying-coefficient ridge student in log space.
 
@@ -489,12 +490,23 @@ def fit_ridge(
     (exponential concentration laws of the Mooney 1951 type), so a linear
     model in log space extrapolates in exactly the way trees cannot,
     while remaining queryable at any shear rate through the log_gamma
-    term.  The ridge penalty (α selected by efficient leave-one-out CV;
-    Golub, Heath & Wahba 1979) controls the extra interaction columns.
+    term.
+
+    RIDGE PENALTY SELECTION
+    -----------------------
+    When ``groups`` is provided (an array of chemistry IDs aligned with
+    the training rows), α is selected by chemistry-level
+    leave-one-out CV: each fold holds out ALL rows — measured and
+    augmented — that belong to one chemistry, matching the evaluation
+    protocol.  This prevents the correlated augmented rows of the same
+    recipe from inflating the CV score and selecting an overly small
+    penalty.  When ``groups`` is None the efficient GCV identity
+    (Golub, Heath & Wahba 1979) is used as a fallback.
 
     Sample weights (measured vs augmented points) are honoured.
     """
-    from sklearn.linear_model import RidgeCV
+    from sklearn.linear_model import Ridge, RidgeCV
+    from sklearn.model_selection import LeaveOneGroupOut
 
     preprocessor = _make_preprocessor(X_train, scale_numeric=True)
     X_train_enc = preprocessor.fit_transform(X_train)
@@ -506,6 +518,8 @@ def fit_ridge(
         X_train_enc = X_train_enc[~nan_mask]
         y_train = np.asarray(y_train, float)[~nan_mask]
         weights = weights[~nan_mask]
+        if groups is not None:
+            groups = np.asarray(groups)[~nan_mask]
 
     names = list(preprocessor.get_feature_names_out())
     gamma_idx = [i for i, n in enumerate(names) if n.endswith("log_gamma")]
@@ -532,8 +546,32 @@ def fit_ridge(
             f"got {target_transform!r}"
         )
 
-    model = RidgeCV(alphas=np.logspace(-3, 3, 25), cv=None)
-    model.fit(D_train, y_fit, sample_weight=weights)
+    alphas = np.logspace(-3, 3, 25)
+
+    if groups is not None:
+        # Chemistry-level LOO: each fold holds out all rows of one chemistry.
+        grp = np.asarray(groups)
+        logo = LeaveOneGroupOut()
+        best_alpha = alphas[0]
+        best_score = -np.inf
+        for alpha in alphas:
+            fold_scores = []
+            for tr_idx, val_idx in logo.split(D_train, y_fit, grp):
+                m = Ridge(alpha=alpha)
+                m.fit(D_train[tr_idx], y_fit[tr_idx],
+                      sample_weight=weights[tr_idx])
+                y_val_pred = m.predict(D_train[val_idx])
+                fold_scores.append(_r2(y_fit[val_idx], y_val_pred))
+            score = float(np.mean(fold_scores))
+            if score > best_score:
+                best_score = score
+                best_alpha = alpha
+        model = Ridge(alpha=best_alpha)
+        model.fit(D_train, y_fit, sample_weight=weights)
+        model.alpha_ = best_alpha  # expose for diagnostics
+    else:
+        model = RidgeCV(alphas=alphas, cv=None)
+        model.fit(D_train, y_fit, sample_weight=weights)
 
     feature_cols = list(X_train.columns)
 
@@ -584,10 +622,16 @@ SUPPORTED_LEARNERS = ("xgb", "gpr", "ridge")
 
 
 def fit_learner(learner_name: str, **kwargs: Any) -> FitResult:
-    """Dispatch ``learner_name`` to ``fit_xgb`` / ``fit_gpr`` / ``fit_ridge``."""
+    """Dispatch ``learner_name`` to ``fit_xgb`` / ``fit_gpr`` / ``fit_ridge``.
+
+    ``groups`` (if present in kwargs) is forwarded to ``fit_ridge`` and
+    silently dropped for ``fit_xgb`` / ``fit_gpr``, which do not use it.
+    """
     if learner_name == "xgb":
+        kwargs.pop("groups", None)
         return fit_xgb(**kwargs)
     if learner_name == "gpr":
+        kwargs.pop("groups", None)
         return fit_gpr(**kwargs)
     if learner_name == "ridge":
         return fit_ridge(**kwargs)
