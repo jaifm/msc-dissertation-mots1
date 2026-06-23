@@ -265,9 +265,9 @@ exactly determine K and n — no leakage from the held-out shear).
 
 | Held-out γ̇ | XGB no_aug | XGB aug_30 | Ridge no_aug | Ridge aug_30 |
 |---|---|---|---|---|
-| 1 (extrap. ↓) | −0.146 | 0.495 | 0.593 | 0.624 |
-| 10 (interp.) | **−2.596** | **0.675** | 0.727 | 0.712 |
-| 100 (extrap. ↑) | −2.016 | 0.449 | 0.524 | **0.793** |
+| 1 (extrap. ↓) | −0.146 | 0.495 | 0.486 | 0.560 |
+| 10 (interp.) | **−2.596** | **0.675** | 0.684 | 0.680 |
+| 100 (extrap. ↑) | −2.016 | 0.449 | 0.632 | **0.776** |
 
 KEY FINDING — the augmentation decomposition:
 - The tree student has *no* training signal at unseen log_gamma values and
@@ -275,8 +275,9 @@ KEY FINDING — the augmentation decomposition:
   the curve between/beyond training shears.  For trees, augmentation is
   structural.
 - The ridge student is linear in log_gamma by construction and predicts
-  held-out shears well with **zero** augmented points.  Augmentation adds
-  only at the extrapolated high shear (0.524 → 0.793).
+  held-out shears usably with **zero** augmented points.  Augmentation
+  helps at the two extrapolated edges (0.486 → 0.560 low, 0.632 → 0.776
+  high) and is flat at the interpolated mid-rate (0.684 → 0.680).
 - Therefore physics augmentation primarily *repairs a missing inductive
   bias* in students that lack one, and is a smaller, targeted aid for
   students with the right bias built in.  This is the dissertation's
@@ -466,19 +467,21 @@ shear).  CSVs: `conformal_{xgb,ridge}[_mondrian]_results.csv`.
 |---|---|---|---|---|
 | XGB | marginal | 82.6% | 87.1% | 1.369 |
 | XGB | Mondrian per-shear | 77.3% | 81.8% | 1.199 |
-| Ridge | marginal | 88.6% | 89.4% | 1.593 |
-| Ridge | Mondrian per-shear | 84.8% | **95.5%** | 1.208 |
+| Ridge | marginal | 84.8% | 93.2% | 1.480 |
+| Ridge | Mondrian per-shear | 82.6% | **94.7%** | 1.278 |
 
 - Marginal intervals under-cover for the XGB student: the OOD chemistry
   split violates exchangeability, consistent with its elevated test error.
-- The ridge student is close to nominal (88.6% vs 90%) — better OOD
-  calibration tracks its better OOD accuracy.
+- The ridge student is better calibrated than the tree student (84.8% vs
+  82.6% at 90% marginal) — better OOD calibration tracks its better OOD
+  accuracy.
 - Mondrian (per-shear) calibration exposes the error asymmetry the
-  marginal radius hides: q(γ̇=1) ≈ 0.93–0.97 vs q(γ̇=100) ≈ 0.30–0.32 in
+  marginal radius hides: q(γ̇=1) ≈ 1.07–1.32 vs q(γ̇=100) ≈ 0.31–0.63 in
   log1p units — the low-shear viscosity is ~3× harder.  With only 20
   calibration scores per shear the Mondrian quantiles are noisy; at the
-  95% level the ridge+Mondrian combination achieves nominal coverage
-  (95.5%) at a narrower mean width than the marginal interval.
+  95% level the ridge+Mondrian combination reaches near-nominal coverage
+  (94.7%) at a narrower mean width (1.851) than the marginal interval
+  (2.053).
 
 ### GPR calibration and uncertainty analysis (gpr_uq study)
 
