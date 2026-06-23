@@ -168,8 +168,11 @@ random slice of the augmented training set did not transfer.
 
 ### exp_035 — Chemistry-standardised split (strict hold-out)
 
-**R²(log) = 0.753** (power_law oracle, n_test=132, 16 Composite_Mix_IDs
-held out, all 5 oracles, n_aug_points=30).
+**R²(log) = 0.753** (best oracle: constrained Carreau–Yasuda; the
+power-law oracle is 0.744 — matching `power_law__xgb` in exp_043; n_test=132,
+16 Composite_Mix_IDs held out, all 5 oracles, n_aug_points=30).  Oracle
+spread is only 0.029 (0.724–0.753), so oracle choice is not consequential
+and the two-parameter power law is within 0.009 of the best.
 
 The 0.062 gap vs exp_030's random-split 0.815 quantifies recipe-level
 leakage in the random split.  This was the honest headline number until

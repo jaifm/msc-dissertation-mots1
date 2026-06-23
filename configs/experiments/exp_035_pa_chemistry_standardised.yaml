@@ -17,7 +17,7 @@ hypothesis: >
   exp_030's fixed-split result because the test rows share no
   Composite_Mix_ID with training.
 
-  OUTCOME: R²(log)=0.753 (best oracle: power_law, n_test=132).  This
+  OUTCOME: R²(log)=0.753 (best oracle: constrained_cy; power_law=0.744, n_test=132).  This
   confirms the degradation from removing recipe overlap: the fixed random
   split (exp_030, R²(log)=0.815) benefited from having other batches of
   the same recipe in training.  The 0.062 gap quantifies the recipe-level
