@@ -36,6 +36,21 @@ All headline claims in the dissertation use R²(log).
 
 \* mean parameter R², not pooled viscosity R²(log) — see exp_037 section.
 
+**Best-oracle convention:** every physics-augmented row above reports that
+model's *best-performing* constitutive oracle, not a fixed one — because the
+best oracle differs by student.  So the headline numbers are:
+
+| PA model | Best oracle | Pooled R²(log) |
+|---|---|---|
+| Ridge (exp_044) | Sisko | 0.774 |
+| XGBoost (exp_035) | constrained Carreau–Yasuda | 0.753 |
+| GPR (exp_043) | power law | 0.752 |
+| XGBoost + monotone (exp_040) | constrained CY / power law | 0.735 |
+
+The XGBoost headline **0.753 is the constrained-CY oracle, not power-law**
+(power-law XGBoost is 0.744 — see the exp_035 ablation below).  Per-oracle
+breakdowns are under exp_035 (XGBoost) and exp_044 (ridge).
+
 The only model that edges out the physics-augmented ridge is the per-shear
 ridge, which trains one model per measured shear and cannot be queried at
 any other shear rate — it cannot answer the deployment question.
@@ -168,11 +183,25 @@ random slice of the augmented training set did not transfer.
 
 ### exp_035 — Chemistry-standardised split (strict hold-out)
 
-**R²(log) = 0.753** (best oracle: constrained Carreau–Yasuda; the
-power-law oracle is 0.744 — matching `power_law__xgb` in exp_043; n_test=132,
-16 Composite_Mix_IDs held out, all 5 oracles, n_aug_points=30).  Oracle
-spread is only 0.029 (0.724–0.753), so oracle choice is not consequential
-and the two-parameter power law is within 0.009 of the best.
+**Headline PA-XGBoost R²(log) = 0.753** — the *best-oracle* value (n_test=132,
+16 Composite_Mix_IDs held out, n_aug_points=30).  Full per-oracle XGBoost
+ablation, reproducible from the current exp_035 run
+(`python -m src.cli run --config exp_035_pa_chemistry_standardised`):
+
+| Oracle | R²(log) |
+|---|---|
+| **constrained Carreau–Yasuda** | **0.753** ← headline (best) |
+| power law | 0.744 |
+| sisko | 0.740 |
+| williamson | 0.725 |
+| cy5 | 0.724 |
+
+**Canonical value:** the XGBoost headline is **0.753 = constrained Carreau–Yasuda**,
+*not* power-law.  The power-law XGBoost oracle is **0.744**, which is exactly
+the `power_law__xgb = 0.744` reported in exp_043 — the two experiments agree,
+there is no contradiction.  The oracle spread is only 0.029 (0.724–0.753), so
+oracle choice is not consequential and the two-parameter power law sits within
+0.009 of the best.
 
 The 0.062 gap vs exp_030's random-split 0.815 quantifies recipe-level
 leakage in the random split.  This was the honest headline number until
